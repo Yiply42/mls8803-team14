@@ -10,6 +10,7 @@ import itertools
 import math
 import copy
 import pickle
+import os
 from tqdm import tqdm
 
 SOLUTIONS_FILE = "solutions_dict.pkl"
@@ -21,10 +22,14 @@ combos = list(itertools.combinations(full_deck.cards, 5))
 actions = [[int(b) for b in format(i, '05b')] for i in range(32)]
 
 solved_states = {} #(sorted_hand, turn) -> expected_value
+if os.path.exists(SOLUTIONS_FILE):
+    with open(SOLUTIONS_FILE, "rb") as f:
+        solved_states = pickle.load(f)
+
 
 for turn in range(4, 0, -1):
     with tqdm(total=len(combos), desc=f"Turn {turn} Combinations", leave=False) as pbar:
-        for combo in combos:
+        for combo_num, combo in enumerate(combos):
             combo = list(combo)
             hand = Hand(combo)
 
@@ -73,7 +78,10 @@ for turn in range(4, 0, -1):
                 solved_states[(tuple(hand.cards), turn)] = (best_action, best_action_ev)
             #print(f"Optimal Solution: {best_action}, EV = {best_action_ev}")
             pbar.update(1)
-    with open("optimal_play_dict", "wb") as f:
+            if combo_num in [10,100,1000,10000,100000,1000000]:
+                with open(SOLUTIONS_FILE, "wb") as f:
+                    pickle.dump(solved_states, f, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(SOLUTIONS_FILE, "wb") as f:
         pickle.dump(solved_states, f, protocol=pickle.HIGHEST_PROTOCOL)
                     
 
