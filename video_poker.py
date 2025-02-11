@@ -1,5 +1,17 @@
 from poker_classes import Deck, Hand
 import torch
+import pickle
+import os
+
+
+SOLUTIONS_FILE = "solutions_dict_replacement.pkl"
+
+solved_states = {} #(sorted_hand, turn) -> expected_value
+
+print("Loading Solutions...")
+if os.path.exists(SOLUTIONS_FILE):
+    with open(SOLUTIONS_FILE, "rb") as f:
+        solved_states = pickle.load(f)
 
 class VideoPokerGame:
     def __init__(self):
@@ -22,11 +34,20 @@ class VideoPokerGame:
             self.hand_history.append(self.state)
 
             while self.turn_number < 4:
+                optimal_play, optimal_play_ev = solved_states[(tuple(self.hand.cards),self.turn_number)]
                 if is_human:
                     print(f"Turn {self.turn_number}/3\n Your Hand: {self.hand} | {self.hand.get_hand()[0]}")
+                    for i, q in enumerate(optimal_play):
+                        if q == 1:
+                            optimal_play[i] = "Draw"
+                        else:
+                            optimal_play[i] = "Hold"
 
+                    print(f"Optimal Play: {optimal_play}, EV: {optimal_play_ev}")
                     valid_input = False
                     while not valid_input:
+
+                        print("")
                         ans = input("Select the cards you would like to hold (1-5). Example: \'135\'\t")
                         if len(ans) > 5 or len(ans.strip("12345 ")) > 0:
                             print("Invalid Input. Select the cards you would like to hold (1-5). Example: To hold the 1st, 3rd, and 5th cards, type \'135\'")

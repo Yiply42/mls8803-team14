@@ -1,3 +1,9 @@
+""""
+    Findings: The total EV for the game is 26.7154
+"""
+
+
+
 from poker_classes import Deck, Hand
 import itertools
 import math

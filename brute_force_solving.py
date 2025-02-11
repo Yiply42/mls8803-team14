@@ -14,7 +14,7 @@ import pickle
 import os
 from tqdm import tqdm
 
-SOLUTIONS_FILE = "solutions_dict.pkl"
+SOLUTIONS_FILE = "solutions_dict_new.pkl"
 
 full_deck = Deck()
 
@@ -72,7 +72,8 @@ for turn in range(4, 0, -1):
                         #calculate the real action ev and replace the prev if its better
                         action_ev /= math.comb(len(drawPool), num_discarded_cards)
                         #Save the action_ev for reuse later
-                        solved_states[(tuple(held_cards), turn)] = ([0,0,0,0,0], action_ev)
+                        if num_discarded_cards > 0:
+                            solved_states[(tuple(held_cards), turn)] = ([0,0,0,0,0], action_ev)
                     if action_ev > best_action_ev:
                         best_action = action
                         best_action_ev = action_ev
