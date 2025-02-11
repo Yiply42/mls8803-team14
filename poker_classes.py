@@ -30,9 +30,10 @@ class Rank(Enum):
     
 
 class Deck:
-    def __init__(self):
+    def __init__(self, shuffle = True):
         self.cards = [Card(rank, suit) for suit in Suit for rank in Rank]
-        self.shuffle()
+        if shuffle:
+            self.shuffle()
 
     def __str__(self):
         str = ""
@@ -54,6 +55,9 @@ class Card:
         self.rank = rank
         self.suit = suit
 
+    def __hash__(self):
+        return hash((self.rank, self.suit))
+
     def __str__(self):
         return f"{self.rank}{self.suit}"
 
@@ -61,19 +65,30 @@ class Card:
         return self.rank == other.rank and self.suit == other.suit
 
     def __lt__(self, other):
-        return self.rank.value[1] < other.rank.value[1]
+        if self.rank.value[1] != other.rank.value[1]:
+            return self.rank.value[1] < other.rank.value[1]
+        return self.suit.value[1] < other.suit.value[1]
 
     def __gt__(self, other):
-        return self.rank.value[1] > other.rank.value[1]
+        if self.rank.value[1] != other.rank.value[1]:
+            return self.rank.value[1] > other.rank.value[1]
+        return self.suit.value[1] > other.suit.value[1]
 
     def __le__(self, other):
-        return self.rank.value[1] <= other.rank.value[1]
+        if self.rank.value[1] != other.rank.value[1]:
+            return self.rank.value[1] <= other.rank.value[1]
+        return self.suit.value[1] <= other.suit.value[1]
 
     def __ge__(self, other):
-        return self.rank.value[1] >= other.rank.value[1]
+        if self.rank.value[1] != other.rank.value[1]:
+            return self.rank.value[1] >= other.rank.value[1]
+        return self.suit.value[1] >= other.suit.value[1]
 
     def __ne__(self, other):
         return self.rank != other.rank or self.suit != other.suit
+    
+    def __repr__(self):
+        return str(self)
     
 class Hand:
     def __init__(self, cards):
@@ -90,6 +105,12 @@ class Hand:
         for card in self.cards:
             str += f"{card}, "
         return str.strip(", ")
+    
+    def __repr__(self):
+        return str(self)
+    
+    def __eq__(self, other):
+        return self.cards == other.cards
     
     def replace_card(self, index_or_card, new_card):
         if isinstance(index_or_card, int):
@@ -152,8 +173,11 @@ class Hand:
     def is_flush(self):
         return 5 in self.suit_counts
     def is_straight(self):
+        if self.cards[0].rank == Rank.ACE and self.cards[1].rank == Rank.FIVE and self.cards[2].rank == Rank.FOUR and self.cards[3].rank == Rank.THREE and self.cards[4].rank == Rank.TWO:
+            return True
+
         for i in range(4):
-            if self.cards[i].rank.value[1] != self.cards[i - 1].rank.value[1] + 1:
+            if self.cards[i].rank.value[1] != self.cards[i + 1].rank.value[1] + 1:
                 return False
         return True
     def is_three_of_a_kind(self):

@@ -1,10 +1,5 @@
 from poker_classes import Deck, Hand
-from enum import Enum
 import torch
-
-class Action(Enum):
-    HOLD = 0
-    DISCARD = 1
 
 class VideoPokerGame:
     def __init__(self):
@@ -39,6 +34,7 @@ class VideoPokerGame:
                             valid_input = True
                     actions = torch.tensor([0 if str(i + 1) in ans else 1 for i in range(5)])
                 else:
+                    #We define 0 as hold and 1 as discard
                     actions = agent.get_action(self.state)
                 
                 self.take_turn(actions)
@@ -65,7 +61,6 @@ class VideoPokerGame:
         self.turn_number += 1
 
         for i, action in enumerate(actions):
-            print(action.item())
             if action == 1:
                 self.hand.replace_card(i, self.deck.draw())
         self.hand.sort()
