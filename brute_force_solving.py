@@ -1,7 +1,8 @@
 """
     Large Limitation: The brute force approach assumes you always draw from a full deck of cards.
     This is not the case in video poker, where you draw from a deck of cards that is missing the cards you have already drawn.
-    If we wanted to track the cards that have been drawn, we would need to avergage over approximately 1e14 game states.
+    If we wanted to track the cards that have been drawn, we would need to avergage over approximately 4 trillion game states.
+    On my computer this would take a lower bound of 7000 hours.
     Therefore, we assume that the deck is full for simplicity to provide very close to accurate results.
 """
 
