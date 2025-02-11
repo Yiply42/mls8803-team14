@@ -23,12 +23,14 @@ combos = list(itertools.combinations(full_deck.cards, 5))
 actions = [[int(b) for b in format(i, '05b')] for i in range(32)]
 
 solved_states = {} #(sorted_hand, turn) -> expected_value
+
+print("Loading Solutions...")
 if os.path.exists(SOLUTIONS_FILE):
     with open(SOLUTIONS_FILE, "rb") as f:
         solved_states = pickle.load(f)
 
 
-for turn in range(4, 0, -1):
+for turn in range(3, 0, -1):
     with tqdm(total=len(combos), desc=f"Turn {turn} Combinations", leave=False) as pbar:
         for combo_num, combo in enumerate(combos):
             combo = list(combo)
@@ -61,9 +63,11 @@ for turn in range(4, 0, -1):
                     else:
                         #try out each possible draw
                         for subset in itertools.combinations(drawPool, num_discarded_cards):
-                            #print(hand, held_cards, subset, drawPool, dont_draw, num_discarded_cards)
+                            #print(hand, held_cards, subset, num_discarded_cards)
+
                             held_cards.extend(list(subset))
-                            drawn_hand = Hand(copy.deepcopy(held_cards))
+                            drawn_hand = Hand(held_cards[:])
+
                             _, resultant_hand_value = solved_states[((tuple(drawn_hand.cards), turn + 1))]
                             drawn_hand.get_hand()
                             action_ev += resultant_hand_value
@@ -80,7 +84,7 @@ for turn in range(4, 0, -1):
                 solved_states[(tuple(hand.cards), turn)] = (best_action, best_action_ev)
             #print(f"Optimal Solution: {best_action}, EV = {best_action_ev}")
             pbar.update(1)
-            if combo_num in [10,100,1000,10000,100000,1000000]:
+            if combo_num in [1, 10,100,1000,10000,100000,1000000]:
                 with open(SOLUTIONS_FILE, "wb") as f:
                     pickle.dump(solved_states, f, protocol=pickle.HIGHEST_PROTOCOL)
     with open(SOLUTIONS_FILE, "wb") as f:
