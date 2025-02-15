@@ -4,11 +4,11 @@ import pickle
 import os
 
 
-SOLUTIONS_FILE = "solutions_dict_replacement.pkl"
+SOLUTIONS_FILE = "solutions_dict.pkl"
 
 solved_states = {} #(sorted_hand, turn) -> expected_value
 
-print("Loading Solutions...")
+print(f"Loading Solutions from {SOLUTIONS_FILE}...")
 if os.path.exists(SOLUTIONS_FILE):
     with open(SOLUTIONS_FILE, "rb") as f:
         solved_states = pickle.load(f)
@@ -37,16 +37,16 @@ class VideoPokerGame:
                 optimal_play, optimal_play_ev = solved_states[(tuple(self.hand.cards),self.turn_number)]
                 if is_human:
                     print(f"Turn {self.turn_number}/3\n Your Hand: {self.hand} | {self.hand.get_hand()[0]}")
-                    for i, q in enumerate(optimal_play):
+                    optimal_play_display = optimal_play.copy()
+                    for i, q in enumerate(optimal_play_display):
                         if q == 1:
-                            optimal_play[i] = "Draw"
+                            optimal_play_display[i] = "Draw"
                         else:
-                            optimal_play[i] = "Hold"
+                            optimal_play_display[i] = "Hold"
 
-                    print(f"Optimal Play: {optimal_play}, EV: {optimal_play_ev}")
+                    print(f"Optimal Play: {optimal_play_display}, EV: {optimal_play_ev}")
                     valid_input = False
                     while not valid_input:
-
                         print("")
                         ans = input("Select the cards you would like to hold (1-5). Example: \'135\'\t")
                         if len(ans) > 5 or len(ans.strip("12345 ")) > 0:
