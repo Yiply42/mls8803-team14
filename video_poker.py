@@ -30,7 +30,7 @@ class VideoPokerGame:
             self.hand = Hand([self.deck.draw() for _ in range(5)])
             self.hand_history = []
             self.turn_number = 1
-            self.state = State(self.hand, self.deck, self.turn_number)
+            self.state = State(self.hand, self.turn_number)
             self.hand_history.append(self.state)
 
             while self.turn_number < 4:
@@ -59,7 +59,7 @@ class VideoPokerGame:
                     actions = agent.get_action(self.state)
                 
                 self.take_turn(actions)
-                self.state = State(self.hand, self.deck, self.turn_number)
+                self.state = State(self.hand, self.turn_number)
                 self.hand_history.append(self.state)
             hand_type, hand_value = self.hand.get_hand()
             if is_human:
@@ -88,9 +88,8 @@ class VideoPokerGame:
         
 
 class State:
-    def __init__(self, hand, deck, turn):
+    def __init__(self, hand, turn):
         self.hand = hand
-        self.deck = deck
         self.turn = turn
     
 
