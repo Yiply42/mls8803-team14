@@ -133,4 +133,7 @@ The DQN agent, after training, achieves a mean score of approximately 22 points 
 
 The folder `media` contains the following files:
 - `OptimalAgent_rewards_distribution.png`: Histogram of scores for the optimal agent
-- `DQN_Agent_rewards_distribution.png`: Histogram of scores for the DQN agent
+- `DQN_rewards_distribution.png`: Histogram of scores for the DQN agent
+
+![Optimal Agent Rewards Distribution](media/OptimalAgent_rewards_distribution.png)
+![DQN Agent Rewards Distribution](media/DQN_rewards_distribution.png)
