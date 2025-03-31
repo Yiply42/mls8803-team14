@@ -1,0 +1,6 @@
+**/__pycache__
+models
+runs
+solutions_dict.pkl
+scores.png
+cache*/
