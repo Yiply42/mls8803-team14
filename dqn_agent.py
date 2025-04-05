@@ -90,7 +90,7 @@ class DQNAgent:
     DQN Agent that interacts with and learns from the environment.
     """
     def __init__(self, state_size, action_size, hidden_layers=[128, 128], 
-                 buffer_size=10000, batch_size=64, gamma=0.99, 
+                 buffer_size=10000, batch_size=64, gamma=1, 
                  learning_rate=0.001, update_every=4, device=None):
         """
         Initialize an Agent object.

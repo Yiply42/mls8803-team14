@@ -9,6 +9,8 @@ import os
 import pickle
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from solution_loader import load_solved_states
+from pprint import pprint
 
 class RLAgent:
     """
@@ -106,16 +108,24 @@ def compare_with_optimal(model_path, num_games=100):
     agent = RLAgent(model_path)
     
     # Statistics
-    agent_rewards = []
+    agent_rewards = {
+        0: 0,
+        5: 0,
+        10: 0,
+        20: 0,
+        30: 0,
+        40: 0,
+        60: 0,
+        90: 0,
+        250: 0,
+        500: 0,
+        8000: 0,
+    }
     same_actions = 0
     total_actions = 0
 
     # Load solved states
-    SOLUTIONS_FILE = "solutions_dict.pkl"
-    if os.path.exists(SOLUTIONS_FILE):
-        with open(SOLUTIONS_FILE, "rb") as f:
-            solved_states = pickle.load(f)
-    print("Done loading solved states.")
+    solved_states = load_solved_states()
     
     # Play games
     for _ in tqdm(range(num_games), desc="Playing Games"):
@@ -148,28 +158,44 @@ def compare_with_optimal(model_path, num_games=100):
         
         # Get final reward
         _, reward = game.hand.get_hand()
-        agent_rewards.append(reward)
+        agent_rewards[reward] += 1
         
 
-    # Plot histogram of agent rewards
-    plt.hist(agent_rewards, bins=50, range=(0, 100), alpha=1, label='DQN Agent')
-    plt.xlabel("Rewards")
-    plt.ylabel("Frequency")
-    plt.title(f"Histogram of DQN Agent rewards across {num_games} games")
-    plt.legend()
-    plt.savefig("media/DQN_rewards_distribution.png")
-    plt.show()
-
     # Calculate statistics
-    agent_avg_reward = np.mean(agent_rewards)
-    agent_std = np.std(agent_rewards)
+    normalized_scores = {k: v / num_games for k, v in agent_rewards.items()}
     action_agreement = same_actions / total_actions if total_actions > 0 else 0
     
-    print(f"DQN Agent average reward: {agent_avg_reward:.2f}")
-    print(f"DQN Agent standard deviation of rewards: {agent_std:.2f}")
+    # Plot histogram of agent rewards
+    hand_labels = list(map(str, agent_rewards.keys()))
+    x_positions = range(len(hand_labels))
+    plt.bar(x_positions, normalized_scores.values(), 
+            color=(0.5, 0.7, 0.9),
+            alpha=0.8,
+            edgecolor='darkblue',
+            linewidth=0.5,
+            label='DQN Agent')
+    plt.xlabel("Hand Value")
+    plt.ylabel("Normalized Frequency")
+    plt.xticks(x_positions, hand_labels)
+    plt.title(f"Approx Probabilities of DQN rewards across {num_games} games")
+    plt.legend()
+    plt.savefig(f"media/DQN_rewards_distribution_{num_games}.png")
+    plt.show()
+
+    print("Normalized scores")
+    pprint(normalized_scores)
     print(f"Action agreement with optimal strategy: {action_agreement:.2%}")
     
-    return agent_avg_reward, action_agreement
+    csv_path = f"media/{model_path}_DQN_scores_{num_games}.csv"
+    
+    with open(csv_path, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['Hand Value', 'Normalized Frequency'])
+        for hand_value, freq in normalized_scores.items():
+            writer.writerow([hand_value, freq])
+    
+    print(f"Saved normalized scores to {csv_path}")
+    return normalized_scores, action_agreement
 
 def play_interactive(model_path):
     """

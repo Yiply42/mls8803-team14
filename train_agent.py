@@ -52,7 +52,21 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
     eps = eps_start
     
     # List to store scores from each episode
-    scores = []
+    scores = {
+        0: 0,
+        5: 0,
+        10: 0,
+        20: 0,
+        30: 0,
+        40: 0,
+        60: 0,
+        90: 0,
+        250: 0,
+        500: 0,
+        8000: 0,
+    }
+
+    score_hist = []
     
     # Track best model
     best_avg_score = -np.inf
@@ -83,15 +97,30 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
                 break
         
         # Append score
-        scores.append(score)
+        scores[score] += 1
+        score_hist.append(score)
         
         # Log to TensorBoard
+        avg_straights = scores[40] / i_episode
+        avg_flushes = scores[60] / i_episode
+        avg_fullhouses = scores[90] / i_episode
+        avg_quads = scores[250] / i_episode
+        avg_straightflushes = scores[500] / i_episode
+        avg_royalflushes = scores[8000] / i_episode
+        ratio_FLST_to_FHQD = (avg_straights + avg_flushes) / (avg_fullhouses + avg_quads)
         writer.add_scalar('Training/Score', score, i_episode)
         writer.add_scalar('Training/Epsilon', eps, i_episode)
+        writer.add_scalar('Training/Avg_Straights', avg_straights, i_episode)
+        writer.add_scalar('Training/Avg_Flushes', avg_flushes, i_episode)
+        writer.add_scalar('Training/Avg_Fullhouses', avg_fullhouses, i_episode)
+        writer.add_scalar('Training/Avg_Quads', avg_quads, i_episode)
+        writer.add_scalar('Training/Avg_Straightflushes', avg_straightflushes, i_episode)
+        writer.add_scalar('Training/Avg_Royalflushes', avg_royalflushes, i_episode)
+        writer.add_scalar('Training/Ratio_Of_Flush&Straight_to_Fullhouse&Quads', ratio_FLST_to_FHQD, i_episode)
         
         # Calculate and log moving average
         if i_episode >= 100:
-            avg_score = np.mean(scores[-100:])
+            avg_score = np.mean(score_hist[-100:])
             writer.add_scalar('Training/Avg_Score_100', avg_score, i_episode)
             
             # Save best model
