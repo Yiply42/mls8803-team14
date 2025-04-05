@@ -6,9 +6,10 @@ import numpy as np
 import random
 from collections import deque, namedtuple
 import os
+import heapq
 
-# Define a named tuple for storing experiences
-Experience = namedtuple('Experience', ['state', 'action', 'reward', 'next_state', 'done'])
+PrioritizedExperience = namedtuple('PrioritizedExperience', 
+                                 ['state', 'action', 'reward', 'next_state', 'done', 'priority'])
 
 class ReplayBuffer:
     """
@@ -27,7 +28,7 @@ class ReplayBuffer:
         
     def add(self, state, action, reward, next_state, done):
         """Add a new experience to memory."""
-        e = Experience(state, action, reward, next_state, done)
+        e = PrioritizedExperience(state, action, reward, next_state, done, 1.0)
         self.memory.append(e)
     
     def sample(self):
@@ -85,12 +86,79 @@ class QNetwork(nn.Module):
         return self.model(state)
 
 
+class PrioritizedReplayBuffer:
+    """
+    Fixed-size buffer to store experience tuples with priority.
+    """
+    def __init__(self, buffer_size, batch_size, alpha, beta, beta_frames):
+        """
+        Initialize a PrioritizedReplayBuffer object.
+        
+        Args:
+            buffer_size (int): maximum size of buffer
+            batch_size (int): size of each training batch
+        """
+        self.buffer_size = buffer_size
+        self.batch_size = batch_size
+        
+        # Prioritized Experience Replay
+        self.alpha = alpha
+        self.beta = beta
+        self.beta_frames = beta_frames
+        self.frame = 1
+        self.priorities = []
+        self.experiences = []
+        self.max_priority = 1.0
+        
+    def add(self, state, action, reward, next_state, done):
+        """Add a new experience to memory with maximum priority"""
+        experience = PrioritizedExperience(state, action, reward, next_state, done, self.max_priority)
+        heapq.heappush(self.priorities, (-self.max_priority, len(self.experiences)))
+        self.experiences.append(experience)
+        if len(self.experiences) > self.buffer_size:
+            self.experiences.pop(0)
+    
+    def sample(self):
+        """Sample a batch of experiences from memory"""
+        self.beta = min(1.0, self.beta + self.frame * (1.0 - self.beta) / self.beta_frames)
+        self.frame += 1
+        
+        # Sample based on priorities
+        priorities = [abs(p[0]) for p in self.priorities[:len(self.experiences)]]
+        probs = np.array(priorities) ** self.alpha
+        probs /= probs.sum()
+        
+        indices = np.random.choice(len(self.experiences), self.batch_size, p=probs)
+        samples = [self.experiences[idx] for idx in indices]
+        
+        # Calculate importance sampling weights
+        weights = (len(self.experiences) * probs[indices]) ** (-self.beta)
+        weights /= weights.max()
+        
+        states = torch.FloatTensor(np.array([e.state for e in samples]))
+        actions = torch.LongTensor(np.array([e.action for e in samples]))
+        rewards = torch.FloatTensor(np.array([e.reward for e in samples]))
+        next_states = torch.FloatTensor(np.array([e.next_state for e in samples]))
+        dones = torch.FloatTensor(np.array([e.done for e in samples]))
+        weights = torch.FloatTensor(weights)
+        
+        return (states, actions, rewards, next_states, dones, indices, weights)
+    
+    def update_priorities(self, indices, errors):
+        """Update priorities of sampled experiences"""
+        for idx, error in zip(indices, errors):
+            priority = (abs(error) + 1e-5)  # Small constant to avoid zero priority
+            heapq.heappush(self.priorities, (-priority, idx))
+            self.experiences[idx] = self.experiences[idx]._replace(priority=priority)
+            self.max_priority = max(self.max_priority, priority)
+
+
 class DQNAgent:
     """
     DQN Agent that interacts with and learns from the environment.
     """
     def __init__(self, state_size, action_size, hidden_layers=[128, 128], 
-                 buffer_size=10000, batch_size=64, gamma=1, 
+                 buffer_size=10_000, batch_size=64, gamma=1, alpha=0.6, beta=0.4, beta_frames=100_000,
                  learning_rate=0.001, update_every=4, device=None):
         """
         Initialize an Agent object.
@@ -120,7 +188,7 @@ class DQNAgent:
         self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=learning_rate)
         
         # Replay memory
-        self.memory = ReplayBuffer(buffer_size, batch_size)
+        self.memory = PrioritizedReplayBuffer(buffer_size, batch_size, alpha, beta, beta_frames)
         
         # Initialize time step (for updating every update_every steps)
         self.t_step = 0
@@ -139,7 +207,7 @@ class DQNAgent:
         
         # Learn every update_every time steps
         self.t_step = (self.t_step + 1) % self.update_every
-        if self.t_step == 0 and len(self.memory) > self.batch_size:
+        if self.t_step == 0 and len(self.memory.experiences) > self.batch_size:
             experiences = self.memory.sample()
             self.learn(experiences)
     
@@ -168,31 +236,44 @@ class DQNAgent:
     
     def learn(self, experiences):
         """
-        Update value parameters using given batch of experience tuples.
+        Update value parameters using given batch of experience tuples with prioritized experience replay.
         
         Args:
-            experiences (Tuple[torch.Tensor]): tuple of (s, a, r, s', done) tuples
+            experiences (Tuple[torch.Tensor]): tuple of (states, actions, rewards, next_states, dones, indices, weights)
+                - states: Current states
+                - actions: Actions taken
+                - rewards: Rewards received
+                - next_states: Next states
+                - dones: Done flags
+                - indices: Indices of sampled experiences for priority updates
+                - weights: Importance sampling weights to correct bias
         """
-        states, actions, rewards, next_states, dones = experiences
+        states, actions, rewards, next_states, dones, indices, weights = experiences
         
-        # Move to device
+        # Move tensors to the correct device
         states = states.to(self.device)
-        actions = actions.to(self.device)
-        rewards = rewards.to(self.device)
+        actions = actions.unsqueeze(1).to(self.device)  # Add dimension to match gather operation
+        rewards = rewards.unsqueeze(1).to(self.device)  # Add dimension for consistency
         next_states = next_states.to(self.device)
-        dones = dones.to(self.device)
+        dones = dones.unsqueeze(1).to(self.device)  # Add dimension for consistency
+        weights = weights.unsqueeze(1).to(self.device)  # Add dimension for element-wise multiplication
         
         # Get max predicted Q values (for next states) from target model
         Q_targets_next = self.qnetwork_target(next_states).detach().max(1)[0].unsqueeze(1)
         
-        # Compute Q targets for current states
+        # Compute Q targets for current states 
         Q_targets = rewards + (self.gamma * Q_targets_next * (1 - dones))
         
         # Get expected Q values from local model
         Q_expected = self.qnetwork_local(states).gather(1, actions)
         
-        # Compute loss
-        loss = F.mse_loss(Q_expected, Q_targets)
+        # Compute loss with importance sampling weights
+        td_errors = Q_targets - Q_expected
+        errors = td_errors.detach().cpu().numpy()
+        loss = (weights * (td_errors ** 2)).mean()  # Weighted MSE loss
+        
+        # Update priorities
+        self.memory.update_priorities(indices, errors.flatten())
         
         # Minimize the loss
         self.optimizer.zero_grad()
@@ -202,8 +283,7 @@ class DQNAgent:
         # Update target network
         self.soft_update(self.qnetwork_local, self.qnetwork_target, 0.001)
         
-        # Update epsilon
-        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
+        return loss.item()
     
     def soft_update(self, local_model, target_model, tau):
         """

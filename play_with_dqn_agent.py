@@ -6,11 +6,11 @@ from dqn_agent import DQNAgent
 from video_poker import VideoPokerGame
 from poker_classes import Hand
 import os
-import pickle
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from solution_loader import load_solved_states
 from pprint import pprint
+import csv
 
 class RLAgent:
     """
@@ -160,6 +160,8 @@ def compare_with_optimal(model_path, num_games=100):
         _, reward = game.hand.get_hand()
         agent_rewards[reward] += 1
         
+    eval_dir = os.path.join("media", model_path[:-4])
+    os.makedirs(eval_dir, exist_ok=True)
 
     # Calculate statistics
     normalized_scores = {k: v / num_games for k, v in agent_rewards.items()}
@@ -179,14 +181,14 @@ def compare_with_optimal(model_path, num_games=100):
     plt.xticks(x_positions, hand_labels)
     plt.title(f"Approx Probabilities of DQN rewards across {num_games} games")
     plt.legend()
-    plt.savefig(f"media/DQN_rewards_distribution_{num_games}.png")
+    plt.savefig(f"{eval_dir}/DQN_rewards_distribution_{num_games}.png")
     plt.show()
 
     print("Normalized scores")
     pprint(normalized_scores)
     print(f"Action agreement with optimal strategy: {action_agreement:.2%}")
     
-    csv_path = f"media/{model_path}_DQN_scores_{num_games}.csv"
+    csv_path = f"{eval_dir}/DQN_scores_{num_games}.csv"
     
     with open(csv_path, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
@@ -211,10 +213,7 @@ def play_interactive(model_path):
     game = VideoPokerGame()
 
     # Load solved states
-    SOLUTIONS_FILE = "solutions_dict.pkl"
-    if os.path.exists(SOLUTIONS_FILE):
-        with open(SOLUTIONS_FILE, "rb") as f:
-            solved_states = pickle.load(f)
+    solved_states = load_solved_states()
     
     # Play the game
     playing = True
@@ -302,7 +301,7 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description='Play Video Poker with a trained DQN agent')
     parser.add_argument('--model', type=str, default='models/final_model.pth', help='Path to the trained model')
-    parser.add_argument('--mode', type=str, choices=['interactive', 'compare'], default='interactive', 
+    parser.add_argument('--mode', type=str, choices=['interactive', 'compare'], default='compare', 
                         help='Mode to run: interactive or compare with optimal')
     parser.add_argument('--num-games', type=int, default=100, help='Number of games to play in compare mode')
     
