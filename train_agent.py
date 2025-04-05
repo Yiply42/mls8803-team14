@@ -185,10 +185,7 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
     agent.save(final_model_path)
     print(f"Training complete. Final model saved to {final_model_path}")
     
-    # Close TensorBoard writer
-    writer.close()
-    
-    return scores, log_dir
+    return scores, writer
 
 def plot_scores(scores, window_size=100, filename='scores.png'):
     """
@@ -238,7 +235,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # Train the agent
-    scores, curr_log_dir = train_dqn(
+    scores, writer = train_dqn(
         n_episodes=args.episodes,
         max_t=args.max_steps,
         eps_start=args.eps_start,
@@ -258,29 +255,37 @@ if __name__ == "__main__":
         gamma=args.gamma
     )
     
-    # Create TensorBoard writer
-    writer = SummaryWriter(log_dir=curr_log_dir)
-
     # Log hyperparameters to TensorBoard
+    final_avg_junk = np.mean(scores[0][-100:]) if scores[0] and len(scores[0]) >= 100 else np.mean(scores[0]) if scores[0] else 0
+    final_avg_lowpair = np.mean(scores[5][-100:]) if scores[5] and len(scores[5]) >= 100 else np.mean(scores[5]) if scores[5] else 0
+    final_avg_highpair = np.mean(scores[10][-100:]) if scores[10] and len(scores[10]) >= 100 else np.mean(scores[10]) if scores[10] else 0
+    final_avg_twopair = np.mean(scores[20][-100:]) if scores[20] and len(scores[20]) >= 100 else np.mean(scores[20]) if scores[20] else 0
+    final_avg_threeofakind = np.mean(scores[30][-100:]) if scores[30] and len(scores[30]) >= 100 else np.mean(scores[30]) if scores[30] else 0
+    final_avg_straights = np.mean(scores[40][-100:]) if scores[40] and len(scores[40]) >= 100 else np.mean(scores[40]) if scores[40] else 0
+    final_avg_flushes = np.mean(scores[60][-100:]) if scores[60] and len(scores[60]) >= 100 else np.mean(scores[60]) if scores[60] else 0
+    final_avg_fullhouses = np.mean(scores[90][-100:]) if scores[90] and len(scores[90]) >= 100 else np.mean(scores[90]) if scores[90] else 0
+    final_avg_quads = np.mean(scores[250][-100:]) if scores[250] and len(scores[250]) >= 100 else np.mean(scores[250]) if scores[250] else 0
+    final_avg_straightflushes = np.mean(scores[500][-100:]) if scores[500] and len(scores[500]) >= 100 else np.mean(scores[500]) if scores[500] else 0
+    final_avg_royalflushes = np.mean(scores[8000][-100:]) if scores[8000] and len(scores[8000]) >= 100 else np.mean(scores[8000]) if scores[8000] else 0
+    final_ratio_30abv_to_30blw = (final_avg_threeofakind + final_avg_straights + \
+                                final_avg_flushes + final_avg_fullhouses + \
+                                final_avg_quads + final_avg_straightflushes + \
+                                final_avg_royalflushes) / \
+                                (final_avg_junk + final_avg_lowpair + \
+                                final_avg_highpair + final_avg_twopair + 1e-10)
     final_metrics = {
-        'final_avg_score': np.mean(scores[-100:]) if len(scores) >= 100 else np.mean(scores),
-        'final_avg_junk': np.mean(scores[0][-100:]) if scores[0] and len(scores[0]) >= 100 else np.mean(scores[0]) if scores[0] else 0,
-        'final_avg_lowpair': np.mean(scores[5][-100:]) if scores[5] and len(scores[5]) >= 100 else np.mean(scores[5]) if scores[5] else 0,
-        'final_avg_highpair': np.mean(scores[10][-100:]) if scores[10] and len(scores[10]) >= 100 else np.mean(scores[10]) if scores[10] else 0,
-        'final_avg_twopair': np.mean(scores[20][-100:]) if scores[20] and len(scores[20]) >= 100 else np.mean(scores[20]) if scores[20] else 0,
-        'final_avg_threeofakind': np.mean(scores[30][-100:]) if scores[30] and len(scores[30]) >= 100 else np.mean(scores[30]) if scores[30] else 0,
-        'final_avg_straights': np.mean(scores[40][-100:]) if scores[40] and len(scores[40]) >= 100 else np.mean(scores[40]) if scores[40] else 0,
-        'final_avg_flushes': np.mean(scores[60][-100:]) if scores[60] and len(scores[60]) >= 100 else np.mean(scores[60]) if scores[60] else 0,
-        'final_avg_fullhouses': np.mean(scores[90][-100:]) if scores[90] and len(scores[90]) >= 100 else np.mean(scores[90]) if scores[90] else 0,
-        'final_avg_quads': np.mean(scores[250][-100:]) if scores[250] and len(scores[250]) >= 100 else np.mean(scores[250]) if scores[250] else 0,
-        'final_avg_straightflushes': np.mean(scores[500][-100:]) if scores[500] and len(scores[500]) >= 100 else np.mean(scores[500]) if scores[500] else 0,
-        'final_avg_royalflushes': np.mean(scores[8000][-100:]) if scores[8000] and len(scores[8000]) >= 100 else np.mean(scores[8000]) if scores[8000] else 0,
-        'final_ratio_30abv_to_30blw': (final_metrics['final_avg_threeofakind'] + final_metrics['final_avg_straights'] + 
-                                      final_metrics['final_avg_flushes'] + final_metrics['final_avg_fullhouses'] + 
-                                      final_metrics['final_avg_quads'] + final_metrics['final_avg_straightflushes'] + 
-                                      final_metrics['final_avg_royalflushes']) / 
-                                     (final_metrics['final_avg_junk'] + final_metrics['final_avg_lowpair'] + 
-                                      final_metrics['final_avg_highpair'] + final_metrics['final_avg_twopair'] + 1e-10)
+        'final_avg_junk': final_avg_junk,
+        'final_avg_lowpair': final_avg_lowpair,
+        'final_avg_highpair': final_avg_highpair,
+        'final_avg_twopair': final_avg_twopair,
+        'final_avg_threeofakind': final_avg_threeofakind,
+        'final_avg_straights': final_avg_straights,
+        'final_avg_flushes': final_avg_flushes,
+        'final_avg_fullhouses': final_avg_fullhouses,
+        'final_avg_quads': final_avg_quads,
+        'final_avg_straightflushes': final_avg_straightflushes,
+        'final_avg_royalflushes': final_avg_royalflushes,
+        'final_ratio_30abv_to_30blw': final_ratio_30abv_to_30blw
     }
     
     writer.add_hparams(
@@ -301,6 +306,25 @@ if __name__ == "__main__":
         final_metrics
     )
     
+    # After writer.add_hparams() and before writer.close()
+    # Get the log directory from the writer
+    log_dir = writer.log_dir
+
+    # Convert args to a dictionary
+    args_dict = vars(args)
+
+    # Combine args and metrics
+    experiment_data = {
+        'args': args_dict,
+        'metrics': final_metrics
+    }
+
+    # Save to JSON file in the log directory
+    experiment_file = os.path.join(log_dir, 'experiment.json')
+    with open(experiment_file, 'w') as f:
+        json.dump(experiment_data, f, indent=4)
+
+    print(f"Saved experiment data to {experiment_file}")
     # Close TensorBoard writer
     writer.close()
     
