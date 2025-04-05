@@ -9,6 +9,7 @@ from datetime import datetime
 
 from poker_env import VideoPokerEnv
 from dqn_agent import DQNAgent
+import json
 
 def exponential_epsilon_decay(eps, eps_end, eps_decay):
     """Exponential epsilon decay"""
@@ -42,7 +43,7 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
                      buffer_size=buffer_size, batch_size=batch_size, gamma=gamma,
                      )
     
-    run_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+    run_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_per_ddqn"
     model_dir = os.path.join(model_dir, run_name)
     log_dir = os.path.join(log_dir, run_name)
     
