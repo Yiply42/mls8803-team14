@@ -9,7 +9,7 @@ import os
 import heapq
 
 PrioritizedExperience = namedtuple('PrioritizedExperience', 
-                                 ['state', 'action', 'reward', 'next_state', 'done', 'priority'])
+                                 ['state', 'action', 'reward', 'next_state', 'done', 'priority', 'n_step_reward'])
 
 class ReplayBuffer:
     """
@@ -28,7 +28,7 @@ class ReplayBuffer:
         
     def add(self, state, action, reward, next_state, done):
         """Add a new experience to memory."""
-        e = PrioritizedExperience(state, action, reward, next_state, done, 1.0)
+        e = PrioritizedExperience(state, action, reward, next_state, done, 1.0, 0)
         self.memory.append(e)
     
     def sample(self):
@@ -90,13 +90,18 @@ class PrioritizedReplayBuffer:
     """
     Fixed-size buffer to store experience tuples with priority.
     """
-    def __init__(self, buffer_size, batch_size, alpha, beta, beta_frames):
+    def __init__(self, buffer_size, batch_size, alpha, beta, beta_frames, n_step=3, gamma=0.99):
         """
         Initialize a PrioritizedReplayBuffer object.
         
         Args:
             buffer_size (int): maximum size of buffer
             batch_size (int): size of each training batch
+            alpha (float): parameter for prioritized replay
+            beta (float): parameter for importance sampling
+            beta_frames (int): frames over which to anneal beta
+            n_step (int): number of steps for n-step returns
+            gamma (float): discount factor
         """
         self.buffer_size = buffer_size
         self.batch_size = batch_size
@@ -110,11 +115,38 @@ class PrioritizedReplayBuffer:
         self.experiences = []
         self.max_priority = 1.0
         
+        # N-step learning
+        self.n_step = n_step
+        self.gamma = gamma
+        self.n_step_buffer = deque(maxlen=n_step)
+        
+    def _get_n_step_info(self):
+        """Return n-step reward, next_state, and done"""
+        reward, next_state, done = self.n_step_buffer[-1][2], self.n_step_buffer[-1][3], self.n_step_buffer[-1][4]
+        
+        # Calculate n-step reward
+        for i in range(len(self.n_step_buffer) - 1):
+            reward += self.gamma ** (i + 1) * self.n_step_buffer[i][2] * (1 - self.n_step_buffer[i][4])
+            
+        return reward, next_state, done
+        
     def add(self, state, action, reward, next_state, done):
         """Add a new experience to memory with maximum priority"""
-        experience = PrioritizedExperience(state, action, reward, next_state, done, self.max_priority)
+        # Save experience in n-step buffer
+        self.n_step_buffer.append((state, action, reward, next_state, done))
+        
+        # Single-step experience (traditional)
+        experience = PrioritizedExperience(state, action, reward, next_state, done, self.max_priority, 0)
+        
+        # If n-step buffer is ready, add n-step experience
+        if len(self.n_step_buffer) >= self.n_step:
+            n_step_reward, n_step_next_state, n_step_done = self._get_n_step_info()
+            # Update the n_step_reward field
+            experience = experience._replace(n_step_reward=n_step_reward)
+        
         heapq.heappush(self.priorities, (-self.max_priority, len(self.experiences)))
         self.experiences.append(experience)
+        
         if len(self.experiences) > self.buffer_size:
             self.experiences.pop(0)
     
@@ -138,11 +170,12 @@ class PrioritizedReplayBuffer:
         states = torch.FloatTensor(np.array([e.state for e in samples]))
         actions = torch.LongTensor(np.array([e.action for e in samples]))
         rewards = torch.FloatTensor(np.array([e.reward for e in samples]))
+        n_step_rewards = torch.FloatTensor(np.array([e.n_step_reward for e in samples]))
         next_states = torch.FloatTensor(np.array([e.next_state for e in samples]))
         dones = torch.FloatTensor(np.array([e.done for e in samples]))
         weights = torch.FloatTensor(weights)
         
-        return (states, actions, rewards, next_states, dones, indices, weights)
+        return (states, actions, rewards, n_step_rewards, next_states, dones, indices, weights)
     
     def update_priorities(self, indices, errors):
         """Update priorities of sampled experiences"""
@@ -159,7 +192,7 @@ class DQNAgent:
     """
     def __init__(self, state_size, action_size, hidden_layers=[128, 128], 
                  buffer_size=10_000, batch_size=64, gamma=0.99, alpha=0.6, beta=0.4, beta_frames=100_000,
-                 learning_rate=0.001, update_every=4, device=None):
+                 learning_rate=0.001, update_every=4, device=None, n_step=3):
         """
         Initialize an Agent object.
         
@@ -170,30 +203,36 @@ class DQNAgent:
             buffer_size (int): replay buffer size
             batch_size (int): minibatch size
             gamma (float): discount factor
+            alpha (float): prioritization exponent
+            beta (float): importance sampling weight
+            beta_frames (int): frames over which to anneal beta
             learning_rate (float): learning rate
             update_every (int): how often to update the network
-            device (torch.device): device to run the model on
+            device (str): device to run on ('cpu' or 'cuda')
+            n_step (int): number of steps for n-step returns
         """
         self.state_size = state_size
         self.action_size = action_size
         self.batch_size = batch_size
         self.gamma = gamma
-        self.learning_rate = learning_rate
         self.update_every = update_every
+        self.n_step = n_step
+        
+        # Set device
         self.device = device if device else torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         
-        # Q-Networks
+        # Q-Network
         self.qnetwork_local = QNetwork(state_size, action_size, hidden_layers).to(self.device)
         self.qnetwork_target = QNetwork(state_size, action_size, hidden_layers).to(self.device)
         self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=learning_rate)
         
         # Replay memory
-        self.memory = PrioritizedReplayBuffer(buffer_size, batch_size, alpha, beta, beta_frames)
+        self.memory = PrioritizedReplayBuffer(buffer_size, batch_size, alpha, beta, beta_frames, n_step, gamma)
         
         # Initialize time step (for updating every update_every steps)
         self.t_step = 0
         
-        # Exploration parameters
+        # Exploration parameter
         self.epsilon = 1.0
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
@@ -237,24 +276,26 @@ class DQNAgent:
     def learn(self, experiences):
         """
         Update value parameters using given batch of experience tuples with prioritized experience replay.
-        Implements Double DQN: local network selects actions, target network evaluates them.
+        Implements Double DQN with n-step returns.
         
         Args:
-            experiences (Tuple[torch.Tensor]): tuple of (states, actions, rewards, next_states, dones, indices, weights)
+            experiences (Tuple[torch.Tensor]): tuple of (states, actions, rewards, n_step_rewards, next_states, dones, indices, weights)
                 - states: Current states
                 - actions: Actions taken
-                - rewards: Rewards received
+                - rewards: Rewards received (1-step)
+                - n_step_rewards: N-step rewards
                 - next_states: Next states
                 - dones: Done flags
                 - indices: Indices of sampled experiences for priority updates
                 - weights: Importance sampling weights to correct bias
         """
-        states, actions, rewards, next_states, dones, indices, weights = experiences
+        states, actions, rewards, n_step_rewards, next_states, dones, indices, weights = experiences
         
         # Move tensors to the correct device
         states = states.to(self.device)
         actions = actions.unsqueeze(1).to(self.device)  # Add dimension to match gather operation
         rewards = rewards.unsqueeze(1).to(self.device)  # Add dimension for consistency
+        n_step_rewards = n_step_rewards.unsqueeze(1).to(self.device)  # Add dimension for consistency
         next_states = next_states.to(self.device)
         dones = dones.unsqueeze(1).to(self.device)  # Add dimension for consistency
         weights = weights.unsqueeze(1).to(self.device)  # Add dimension for element-wise multiplication
@@ -265,8 +306,9 @@ class DQNAgent:
         # Use target network to evaluate the Q-values of those actions
         Q_targets_next = self.qnetwork_target(next_states).detach().gather(1, local_next_actions)
         
-        # Compute Q targets for current states 
-        Q_targets = rewards + (self.gamma * Q_targets_next * (1 - dones))
+        # Compute Q targets for current states using n-step returns
+        # For n-step returns, we use gamma^n for discounting the future value
+        Q_targets = n_step_rewards + (self.gamma ** self.n_step * Q_targets_next * (1 - dones))
         
         # Get expected Q values from local model
         Q_expected = self.qnetwork_local(states).gather(1, actions)
