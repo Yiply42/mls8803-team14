@@ -165,6 +165,11 @@ def compare_with_optimal(model_path, num_games=100):
 
     # Calculate statistics
     normalized_scores = {k: v / num_games for k, v in agent_rewards.items()}
+    ratio_of_30abv_to_30blw = (normalized_scores[30] + normalized_scores[40] +\
+        normalized_scores[60] + normalized_scores[90] + normalized_scores[250] +\
+        normalized_scores[500] + normalized_scores[8000]) / \
+        (normalized_scores[0] + normalized_scores[5] + normalized_scores[10] +\
+        normalized_scores[20])
     action_agreement = same_actions / total_actions if total_actions > 0 else 0
     
     # Plot histogram of agent rewards
@@ -176,19 +181,24 @@ def compare_with_optimal(model_path, num_games=100):
             edgecolor='darkblue',
             linewidth=0.5,
             label='DQN Agent')
+    # Add text values to the bars
+    for i, v in enumerate(normalized_scores.values()):
+        plt.text(i, v, f"{v:.3f}", ha='center', va='bottom')
     plt.xlabel("Hand Value")
     plt.ylabel("Normalized Frequency")
+    plt.ylim(0, 0.35)
     plt.xticks(x_positions, hand_labels)
     plt.title(f"Approx Probabilities of DQN rewards across {num_games} games")
     plt.legend()
-    plt.savefig(f"{eval_dir}/DQN_rewards_distribution_{num_games}.png")
+    plt.savefig(f"{eval_dir}_DQN_rewards_distribution_{num_games}.png")
     plt.show()
 
     print("Normalized scores")
     pprint(normalized_scores)
     print(f"Action agreement with optimal strategy: {action_agreement:.2%}")
+    print(f"Ratio of 30 above to 30 below: {ratio_of_30abv_to_30blw:.3f}")
     
-    csv_path = f"{eval_dir}/DQN_scores_{num_games}.csv"
+    csv_path = f"{eval_dir}_DQN_scores_{num_games}.csv"
     
     with open(csv_path, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
