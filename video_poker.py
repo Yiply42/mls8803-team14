@@ -57,7 +57,7 @@ class VideoPokerGame:
                             print("Invalid Input. Select the cards you would like to hold (1-5). Example: To hold the 1st, 3rd, and 5th cards, type \'135\'")
                         else:
                             valid_input = True
-                    actions = torch.tensor([0 if str(i + 1) in ans else 1 for i in range(5)])
+                    actions = torch.tensor([0 if str(i + 1) in ans else 1 for i in range(5)]).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
                 else:
                     #We define 0 as hold and 1 as discard
                     actions = agent.get_action(self.state)

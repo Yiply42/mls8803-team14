@@ -30,6 +30,7 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
     """
     Train a DQN agent on the Video Poker environment
     """
+    
     # Create the environment
     env = VideoPokerEnv()
     
@@ -42,6 +43,8 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
                      learning_rate=learning_rate, alpha=alpha, beta=beta, beta_frames=beta_frames,
                      buffer_size=buffer_size, batch_size=batch_size, gamma=gamma,
                      )
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     
     run_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_per_ddqn_nstep3"
     model_dir = os.path.join(model_dir, run_name)
@@ -103,7 +106,7 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
             if done:
                 break
         
-        one_hot_rewards = torch.zeros(len(hand_values))
+        one_hot_rewards = torch.zeros(len(hand_values), device=device)
         one_hot_rewards[hand_values.index(score)] += 1
         for i, reward in enumerate(hand_values):
             scores[reward].append(one_hot_rewards[i].item())

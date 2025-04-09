@@ -10,6 +10,8 @@ import heapq
 
 PrioritizedExperience = namedtuple('PrioritizedExperience', 
                                  ['state', 'action', 'reward', 'next_state', 'done', 'priority', 'n_step_reward'])
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 class ReplayBuffer:
     """
@@ -35,11 +37,11 @@ class ReplayBuffer:
         """Randomly sample a batch of experiences from memory."""
         experiences = random.sample(self.memory, k=self.batch_size)
         
-        states = torch.from_numpy(np.vstack([e.state for e in experiences])).float()
-        actions = torch.from_numpy(np.vstack([e.action for e in experiences])).long()
-        rewards = torch.from_numpy(np.vstack([e.reward for e in experiences])).float()
-        next_states = torch.from_numpy(np.vstack([e.next_state for e in experiences])).float()
-        dones = torch.from_numpy(np.vstack([e.done for e in experiences]).astype(np.uint8)).float()
+        states = torch.from_numpy(np.vstack([e.state for e in experiences])).float().to(device)
+        actions = torch.from_numpy(np.vstack([e.action for e in experiences])).long().to(device)
+        rewards = torch.from_numpy(np.vstack([e.reward for e in experiences])).float().to(device)
+        next_states = torch.from_numpy(np.vstack([e.next_state for e in experiences])).float().to(device)
+        dones = torch.from_numpy(np.vstack([e.done for e in experiences]).astype(np.uint8)).float().to(device)
         
         return (states, actions, rewards, next_states, dones)
     
@@ -167,13 +169,13 @@ class PrioritizedReplayBuffer:
         weights = (len(self.experiences) * probs[indices]) ** (-self.beta)
         weights /= weights.max()
         
-        states = torch.FloatTensor(np.array([e.state for e in samples]))
-        actions = torch.LongTensor(np.array([e.action for e in samples]))
-        rewards = torch.FloatTensor(np.array([e.reward for e in samples]))
-        n_step_rewards = torch.FloatTensor(np.array([e.n_step_reward for e in samples]))
-        next_states = torch.FloatTensor(np.array([e.next_state for e in samples]))
-        dones = torch.FloatTensor(np.array([e.done for e in samples]))
-        weights = torch.FloatTensor(weights)
+        states = torch.FloatTensor(np.array([e.state for e in samples])).to(device)
+        actions = torch.LongTensor(np.array([e.action for e in samples])).to(device)
+        rewards = torch.FloatTensor(np.array([e.reward for e in samples])).to(device)
+        n_step_rewards = torch.FloatTensor(np.array([e.n_step_reward for e in samples])).to(device)
+        next_states = torch.FloatTensor(np.array([e.next_state for e in samples])).to(device)
+        dones = torch.FloatTensor(np.array([e.done for e in samples])).to(device)
+        weights = torch.FloatTensor(weights).to(device)
         
         return (states, actions, rewards, n_step_rewards, next_states, dones, indices, weights)
     

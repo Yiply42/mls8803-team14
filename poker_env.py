@@ -122,4 +122,4 @@ class VideoPokerEnv(gym.Env):
         """
         # Convert to binary (e.g., 17 -> [1, 0, 0, 0, 1])
         # In the game, 0 = hold, 1 = discard
-        return torch.tensor([int(b) for b in format(action_idx, '05b')])
+        return torch.tensor([int(b) for b in format(action_idx, '05b')]).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))

@@ -30,6 +30,10 @@ class RLAgent:
         
         # Set exploration to minimum for evaluation
         self.agent.epsilon = 0.01
+
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.agent.to(self.device) 
+
     
     def get_action(self, state):
         """
@@ -80,7 +84,7 @@ class RLAgent:
         # Add turn information
         obs.append((state.turn - 1) / 2.0)  # Normalize turn (0-1)
         
-        return np.array(obs, dtype=np.float32)
+        return torch.tensor(obs, dtype=torch.float32, device=self.device)
     
     def _action_to_binary(self, action_idx):
         """
@@ -94,7 +98,7 @@ class RLAgent:
         """
         # Convert to binary (e.g., 17 -> [1, 0, 0, 0, 1])
         # In the game, 0 = hold, 1 = discard
-        return torch.tensor([int(b) for b in format(action_idx, '05b')])
+        return torch.tensor([int(b) for b in format(action_idx, '05b')], device=self.device)
 
 def compare_with_optimal(model_path, num_games=100):
     """
@@ -147,7 +151,7 @@ def compare_with_optimal(model_path, num_games=100):
             agent_action = agent.get_action(game.state)
             
             # Check if actions are the same
-            if torch.equal(agent_action, torch.tensor(optimal_action)):
+            if torch.equal(agent_action, torch.tensor(optimal_action, device=agent_action.device)):
                 same_actions += 1
             total_actions += 1
             
@@ -273,7 +277,7 @@ def play_interactive(model_path):
                 choice = input("Use [o]ptimal strategy, [a]gent's strategy, or [m]anual input? ").lower().strip()
                 
                 if choice == 'o':
-                    action = torch.tensor(optimal_action)
+                    action = torch.tensor(optimal_action, device=agent_action.device)
                     valid_input = True
                 elif choice == 'a':
                     action = agent_action
@@ -283,7 +287,7 @@ def play_interactive(model_path):
                     if len(ans) > 5 or len(ans.strip("12345 ")) > 0:
                         print("Invalid Input. Select the cards you would like to hold (1-5).")
                     else:
-                        action = torch.tensor([0 if str(i + 1) in ans else 1 for i in range(5)])
+                        action = torch.tensor([0 if str(i + 1) in ans else 1 for i in range(5)], device=agent_action.device)
                         valid_input = True
                 else:
                     print("Invalid choice. Please select 'o', 'a', or 'm'.")
