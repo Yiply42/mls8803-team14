@@ -54,7 +54,7 @@ class QNetwork(nn.Module):
     """
     Neural network for approximating Q-values.
     """
-    def __init__(self, state_size, action_size, hidden_layers=[128, 128]):
+    def __init__(self, state_size, action_size, hidden_layers=[256, 256]):
         """
         Initialize parameters and build model.
         

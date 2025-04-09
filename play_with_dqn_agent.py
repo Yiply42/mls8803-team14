@@ -10,7 +10,9 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from solution_loader import load_solved_states
 from pprint import pprint
+from poker_env import MAX_TURNS
 import csv
+
 
 class RLAgent:
     """
@@ -32,7 +34,6 @@ class RLAgent:
         self.agent.epsilon = 0.01
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.agent.to(self.device) 
 
     
     def get_action(self, state):
@@ -84,7 +85,7 @@ class RLAgent:
         # Add turn information
         obs.append((state.turn - 1) / 2.0)  # Normalize turn (0-1)
         
-        return torch.tensor(obs, dtype=torch.float32, device=self.device)
+        return np.array(obs, dtype=np.float32)
     
     def _action_to_binary(self, action_idx):
         """
@@ -143,9 +144,9 @@ def compare_with_optimal(model_path, num_games=100):
         game.hand_history.append(game.state)
         
         # Play until the game is over
-        while game.turn_number < 4:
+        while game.turn_number <= MAX_TURNS:
             # Get optimal action and expected value
-            optimal_action, _ = solved_states[(tuple(game.hand.cards), game.turn_number)]
+            optimal_action, _ = solved_states[(tuple(game.hand.cards), game.turn_number + (3-MAX_TURNS))]
             
             # Get agent's action
             agent_action = agent.get_action(game.state)
@@ -241,15 +242,15 @@ def play_interactive(model_path):
         game.hand_history.append(game.state)
         
         # Play until the game is over
-        while game.turn_number < 4:
+        while game.turn_number <= MAX_TURNS:
             # Get optimal action and expected value
-            optimal_action, optimal_ev = solved_states[(tuple(game.hand.cards), game.turn_number)]
+            optimal_action, optimal_ev = solved_states[(tuple(game.hand.cards), game.turn_number + (3-MAX_TURNS))]
             
             # Get agent's action
             agent_action = agent.get_action(game.state)
             
             # Display current state
-            print(f"\nTurn {game.turn_number}/3")
+            print(f"\nTurn {game.turn_number}/{MAX_TURNS}")
             print(f"Your Hand: {game.hand} | {game.hand.get_hand()[0]}")
             
             # Display optimal action

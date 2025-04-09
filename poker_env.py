@@ -5,6 +5,8 @@ from video_poker import VideoPokerGame, State
 import gym
 from gym import spaces
 
+MAX_TURNS = 2
+
 class VideoPokerEnv(gym.Env):
     """
     Video Poker Environment that follows gym interface
@@ -68,7 +70,7 @@ class VideoPokerEnv(gym.Env):
         observation = self._get_observation()
         
         # Check if the episode is done
-        done = self.game.turn_number >= 4
+        done = self.game.turn_number > MAX_TURNS
         
         # Calculate reward
         reward = 0
@@ -85,9 +87,9 @@ class VideoPokerEnv(gym.Env):
         Render the environment
         """
         if mode == 'human':
-            print(f"Turn {self.game.turn_number}/3")
+            print(f"Turn {self.game.turn_number}/{MAX_TURNS}")
             print(f"Hand: {self.game.hand} | {self.game.hand.get_hand()[0]}")
-            if self.game.turn_number >= 4:
+            if self.game.turn_number > MAX_TURNS:
                 print(f"Final Hand: {self.game.hand}")
                 print(f"Result: {self.game.hand.get_hand()[0]}, Payout: {self.game.hand.get_hand()[1]}")
     
