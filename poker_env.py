@@ -5,6 +5,8 @@ from video_poker import VideoPokerGame, State
 import gym
 from gym import spaces
 
+TARGET_TYPES = ["Low Pair"]
+
 class VideoPokerEnv(gym.Env):
     """
     Video Poker Environment that follows gym interface
@@ -43,6 +45,8 @@ class VideoPokerEnv(gym.Env):
         # Return the observation
         return self._get_observation()
     
+
+
     def step(self, action):
         """
         Take a step in the environment
@@ -56,6 +60,12 @@ class VideoPokerEnv(gym.Env):
             done (bool): Whether the episode is done
             info (dict): Additional information
         """
+        # Check if we should mark this state
+        mark_state = False
+        hand_type, _ = self.game.hand.get_hand()
+        if hand_type in TARGET_TYPES:
+            mark_state = True
+
         # Convert action index to binary hold/discard decisions
         action_binary = self._action_to_binary(action)
         
@@ -78,7 +88,7 @@ class VideoPokerEnv(gym.Env):
         # Additional info
         info = {}
         
-        return observation, reward, done, info
+        return observation, reward, done, info, mark_state
     
     def render(self, mode='human'):
         """

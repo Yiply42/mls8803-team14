@@ -9,6 +9,7 @@ from datetime import datetime
 
 from poker_env import VideoPokerEnv
 from dqn_agent import DQNAgent
+from dqn_agent_decremental import DQNAgentDecremental
 import json
 
 def exponential_epsilon_decay(eps, eps_end, eps_decay):
@@ -26,7 +27,7 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
               eps_decay=0.995, checkpoint_freq=1000, learning_rate=0.001, 
               alpha=0.6, beta=0.4, beta_frames=100_000, buffer_size=10_000, 
               batch_size=64, gamma=1, model_dir='models', 
-              log_dir='runs/video_poker', decay_type='exponential', decay_percent=80):
+              log_dir='runs/video_poker', decay_type='exponential', decay_percent=80, unlearning_type="none"):
     """
     Train a DQN agent on the Video Poker environment
     """
@@ -38,12 +39,19 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
     action_size = env.action_space.n
     
     # Create the agent
-    agent = DQNAgent(state_size=state_size, action_size=action_size,
+    if unlearning_type == "decremental":
+        agent = DQNAgentDecremental(state_size=state_size, action_size=action_size,
                      learning_rate=learning_rate, alpha=alpha, beta=beta, beta_frames=beta_frames,
                      buffer_size=buffer_size, batch_size=batch_size, gamma=gamma,
                      )
+        run_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_per_ddqn_nstep3_decremental"
+    else:
+        agent = DQNAgent(state_size=state_size, action_size=action_size,
+                     learning_rate=learning_rate, alpha=alpha, beta=beta, beta_frames=beta_frames,
+                     buffer_size=buffer_size, batch_size=batch_size, gamma=gamma,
+                     )
+        run_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_per_ddqn_nstep3_normal"
     
-    run_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_per_ddqn_nstep3"
     model_dir = os.path.join(model_dir, run_name)
     log_dir = os.path.join(log_dir, run_name)
     
@@ -91,10 +99,13 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
             action = agent.act(state, eps)
             
             # Take the action
-            next_state, reward, done, _ = env.step(action)
+            next_state, reward, done, _, mark_state = env.step(action)
             
             # Update the agent with original reward
-            agent.step(state, action, reward, next_state, done)
+            if unlearning_type == "decremental":
+                agent.step(state, action, reward, next_state, done, mark_state)
+            else:
+                agent.step(state, action, reward, next_state, done)
             
             # Update state and score
             state = next_state
@@ -232,6 +243,7 @@ if __name__ == "__main__":
     parser.add_argument('--beta-frames', type=int, default=100_000, help='Number of frames to decay beta')
     parser.add_argument('--learning-rate', type=float, default=0.0001, help='Learning rate for the optimizer')
     parser.add_argument('--gamma', type=float, default=1.0, help='Discount factor')
+    parser.add_argument('--unlearning-type', type=str, default="none", help="Unlearning method")
     
     args = parser.parse_args()
     
@@ -253,7 +265,8 @@ if __name__ == "__main__":
         beta=args.beta,
         beta_frames=args.beta_frames,
         learning_rate=args.learning_rate,
-        gamma=args.gamma
+        gamma=args.gamma,
+        unlearning_type=args.unlearning_type
     )
     
     # Log hyperparameters to TensorBoard
