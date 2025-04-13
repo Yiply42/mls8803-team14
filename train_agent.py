@@ -70,7 +70,8 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
     else:
         agent = DQNAgent(state_size=state_size, action_size=action_size,
                      learning_rate=learning_rate, alpha=alpha, beta=beta, beta_frames=beta_frames,
-                     buffer_size=buffer_size, batch_size=batch_size, gamma=gamma)
+                     buffer_size=buffer_size, batch_size=batch_size, gamma=gamma,
+                     )
         if model_path != 'none':
             agent.load(model_path)
         run_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_per_ddqn_nstep3_normal"
