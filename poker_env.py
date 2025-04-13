@@ -5,7 +5,13 @@ from video_poker import VideoPokerGame, State
 import gym
 from gym import spaces
 
-TARGET_TYPES = ["Low Pair"]
+
+# All qualities of a the state must be satisfied to be identified as a target
+TARGETS = {
+    "Hand_Types": ["Low Pair"],
+    "Additional_Properties": [lambda h: h.is_three_to_a_flush()], # List of additional functions to check
+    "Turn": 1
+}
 
 class VideoPokerEnv(gym.Env):
     """
@@ -63,7 +69,10 @@ class VideoPokerEnv(gym.Env):
         # Check if we should mark this state
         mark_state = False
         hand_type, _ = self.game.hand.get_hand()
-        if hand_type in TARGET_TYPES:
+
+        if hand_type in TARGETS['Hand_Types'] and \
+            all(f(self.game.hand) for f in TARGETS['Additional_Properties']) \
+                and TARGETS['Turn'] == self.game.turn_number:
             mark_state = True
 
         # Convert action index to binary hold/discard decisions
