@@ -191,3 +191,7 @@ class Hand:
         return False
     def is_pair(self):
         return 2 in self.rank_counts
+    def is_four_to_a_flush(self):
+        return 4 in self.suit_counts
+    def is_three_to_a_flush(self):
+        return 3 in self.suit_counts

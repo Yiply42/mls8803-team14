@@ -1,18 +1,36 @@
-from train_agent import *
-from play_with_dqn_agent import *
+from train_agent import train_dqn
+from play_with_dqn_agent import compare_with_optimal
+from poker_env import TARGETS
+import argparse
 
 
-def train_dqn_save_model_stats(args_dict):
+def run_experiment(args, best_model_dir = 'models/2025-04-12_23-36-58_per_ddqn_nstep3_normal'):
     # First, we train a model without any unlearning method.
-    clean_train_scores, clean_train_writer = train_dqn(n_episodes=args['episodes'], max_t=args['max-steps'], eps_start=args['eps-start'], 
-            eps_end=['eps-end'], eps_decay=args['eps-decay'], checkpoint_freq=args['checkpoint-freq'], learning_rate=['learning-rate'], 
-            alpha=args['alpha'], beta=args['beta'], beta_frames=args['beta-frames'], buffer_size=args['buffer-size'], 
-            batch_size=args['batch-size'], gamma=args['gamma'], model_dir=args['model-dir'], 
-            log_dir=args['log-dir'], decay_type=args['decay-type'], decay_percent=args['decay-percent'], unlearning_type="none")
+    if args['train_normal_model']:
+        clean_train_scores, clean_train_writer, clean_model_dir = train_dqn(n_episodes=args['episodes'], max_t=args['max_steps'], eps_start=args['eps_start'], 
+                eps_end=args['eps_end'], eps_decay=args['eps_decay'], checkpoint_freq=args['checkpoint_freq'], learning_rate=args['learning_rate'], 
+                alpha=args['alpha'], beta=args['beta'], beta_frames=args['beta_frames'], buffer_size=args['buffer_size'], 
+                batch_size=args['batch_size'], gamma=args['gamma'], model_dir=args['model_dir'], 
+                log_dir=args['log_dir'], decay_type=args['decay_type'], decay_percent=args['decay_percent'], unlearning_type="none")
+    else:
+        if args['from_model_path'] != "":
+            clean_model_dir = args['from_model_path']
+        else:
+            clean_model_dir = best_model_dir
 
-    # Then, we do an analysis with the 
-    #python play_with_dqn_agent.py --model best_model.pth --mode compare --num-games 10000
-    #compare_with_optimal(args.model, args.num_games)
+    # Then, we do an analysis on that one
+        compare_with_optimal(f'{clean_model_dir}/best_model.pth', num_games = args['eval_episodes'])
+
+    # Then, we 
+    unlearned_train_scores, unlearned_train_writer, unlearned_model_dir = train_dqn(n_episodes=args['episodes'], max_t=args['max_steps'], eps_start=args['eps_start'], 
+            eps_end=args['eps_end'], eps_decay=args['eps_decay'], checkpoint_freq=args['checkpoint_freq'], learning_rate=args['learning_rate'], 
+            alpha=args['alpha'], beta=args['beta'], beta_frames=args['beta_frames'], buffer_size=args['buffer_size'], 
+            batch_size=args['batch_size'], gamma=args['gamma'], model_dir=args['model_dir'], 
+            log_dir=args['log_dir'], decay_type=args['decay_type'], decay_percent=args['decay_percent'], unlearning_type=args['unlearning_type'], model_path=f'{clean_model_dir}/best_model.pth')
+
+    # Then, we do an analysis on that one
+    compare_with_optimal(f'{unlearned_model_dir}/best_model.pth', f'{clean_model_dir}/best_model.pth', args['eval_episodes'])
+
 
 
 if __name__ == "__main__":
@@ -36,7 +54,12 @@ if __name__ == "__main__":
     parser.add_argument('--beta-frames', type=int, default=100_000, help='Number of frames to decay beta')
     parser.add_argument('--learning-rate', type=float, default=0.001, help='Learning rate for the optimizer')
     parser.add_argument('--gamma', type=float, default=1.0, help='Discount factor')
+    parser.add_argument('--eval-episodes', type = int, default=20000)
+    parser.add_argument('--unlearning-type', type=str, choices=['decremental', 'env-poisoning'], default='decremental', help='Type of unlearning type to test')
+    parser.add_argument('--train-normal-model', type=bool, default = False)
+    parser.add_argument('--from-model-path', type=str, default = "")
 
-    args_dict = vars(args)
+    args_dict = vars(parser.parse_args())
+    run_experiment(args_dict)
 
 

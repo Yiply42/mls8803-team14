@@ -48,7 +48,6 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
                      )
             agent.load(model_path)
             agent = convert_to_decremental(agent)
-            print(type(agent))
         else:   
             agent = DQNAgentDecremental(state_size=state_size,          action_size=action_size,
                      learning_rate=learning_rate, alpha=alpha, beta=beta, beta_frames=beta_frames,
@@ -206,7 +205,7 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
     agent.save(final_model_path)
     print(f"Training complete. Final model saved to {final_model_path}")
     
-    return scores, writer
+    return scores, writer, model_dir
 
 def plot_scores(scores, window_size=100, filename='scores.png'):
     """
@@ -314,7 +313,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # Train the agent
-    scores, writer = train_dqn(
+    scores, writer, model_dir = train_dqn(
         n_episodes=args.episodes,
         max_t=args.max_steps,
         eps_start=args.eps_start,

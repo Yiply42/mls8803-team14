@@ -1,16 +1,18 @@
 import argparse
 import numpy as np
 import torch
-from poker_env import VideoPokerEnv
+from poker_env import VideoPokerEnv, TARGETS
 from dqn_agent import DQNAgent
-from video_poker import VideoPokerGame
-from poker_classes import Hand
+from video_poker import *
+from poker_classes import *
 import os
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from solution_loader import load_solved_states
 from pprint import pprint
+import json
 import csv
+
 
 class RLAgent:
     """
@@ -96,7 +98,7 @@ class RLAgent:
         # In the game, 0 = hold, 1 = discard
         return torch.tensor([int(b) for b in format(action_idx, '05b')])
 
-def compare_with_optimal(model_path, num_games=100):
+def compare_with_optimal(model_path, base_model_path = None, num_games=100):
     """
     Compare the agent's performance with the optimal strategy
     
@@ -106,6 +108,8 @@ def compare_with_optimal(model_path, num_games=100):
     """
     # Create the agent
     agent = RLAgent(model_path)
+    if base_model_path:
+        baseline_agent = RLAgent(base_model_path)
     
     # Statistics
     agent_rewards = {
@@ -121,8 +125,33 @@ def compare_with_optimal(model_path, num_games=100):
         500: 0,
         8000: 0,
     }
-    same_actions = 0
+    same_as_optimal_actions = 0
+    baseline_same_as_optimal_actions = 0
+    same_as_baseline_actions = 0
+
+    ev_vs_baseline = 0
+    ev_vs_optimal = 0
+    baseline_ev_vs_optimal = 0
+
+    same_as_optimal_actions_on_target = 0
+    baseline_same_as_optimal_actions_on_target = 0
+    same_as_baseline_actions_on_target = 0
+    
+    ev_vs_baseline_on_target = 0
+    ev_vs_optimal_on_target = 0
+    baseline_ev_vs_optimal_on_target = 0
+
+    same_as_optimal_actions_off_target = 0
+    baseline_same_as_optimal_actions_off_target = 0
+    same_as_baseline_actions_off_target = 0
+    
+    ev_vs_baseline_off_target = 0
+    ev_vs_optimal_off_target = 0
+    baseline_ev_vs_optimal_off_target = 0
+
     total_actions = 0
+    total_on_target_actions = 0
+    total_off_target_actions = 0
 
     # Load solved states
     solved_states = load_solved_states()
@@ -131,7 +160,7 @@ def compare_with_optimal(model_path, num_games=100):
     for _ in tqdm(range(num_games), desc="Playing Games"):
         # Initialize game
         game = VideoPokerGame()
-        game.deck = game.deck = Deck()
+        game.deck = Deck()
         game.hand = Hand([game.deck.draw() for _ in range(5)])
         game.hand_history = []
         game.turn_number = 1
@@ -140,16 +169,84 @@ def compare_with_optimal(model_path, num_games=100):
         
         # Play until the game is over
         while game.turn_number < 4:
+            #See if the state is a target state
+            hand_type, _ = game.hand.get_hand()
+            target_state = False
+            if hand_type in TARGETS['Hand_Types'] and \
+                all(f(game.hand) for f in TARGETS['Additional_Properties']) \
+                and TARGETS['Turn'] == game.turn_number:
+                target_state = True
+                total_on_target_actions += 1
+            else:
+                total_off_target_actions += 1
+            
+            
             # Get optimal action and expected value
             optimal_action, _ = solved_states[(tuple(game.hand.cards), game.turn_number)]
             
             # Get agent's action
             agent_action = agent.get_action(game.state)
-            
+            if base_model_path is not None:
+                baseline_agent_action = baseline_agent.get_action(game.state)
+                if torch.equal(baseline_agent_action, torch.tensor(optimal_action)):
+                    baseline_same_as_optimal_actions += 1
+                    if target_state:
+                        baseline_same_as_optimal_actions_on_target += 1
+                    else:
+                        baseline_same_as_optimal_actions_off_target += 1
+                if torch.equal(baseline_agent_action, agent_action):
+                    same_as_baseline_actions += 1
+                    if target_state:
+                        same_as_baseline_actions_on_target += 1
+                    else:
+                        same_as_baseline_actions_off_target += 1
+                    
+
             # Check if actions are the same
             if torch.equal(agent_action, torch.tensor(optimal_action)):
-                same_actions += 1
+                if target_state:
+                    same_as_optimal_actions_on_target += 1
+                else:
+                    same_as_optimal_actions_off_target += 1
+                same_as_optimal_actions += 1
             total_actions += 1
+
+            # Calculate the EV Loss
+            held_cards = []
+            for i, specific_action in enumerate(agent_action):
+                if specific_action == 0:
+                    held_cards.append(game.hand.cards[i])
+            _, action_ev = solved_states[(tuple(held_cards), game.turn_number)]
+            held_cards = []
+            if base_model_path is not None:
+                for i, specific_action in enumerate(baseline_agent_action):
+                    if specific_action == 0:
+                        held_cards.append(game.hand.cards[i])
+                _, baseline_action_ev = solved_states[(tuple(held_cards), game.turn_number)]
+            held_cards = []
+            for i, specific_action in enumerate(torch.tensor(optimal_action)):
+                if specific_action == 0:
+                    held_cards.append(game.hand.cards[i])
+            _, optimal_action_ev = solved_states[(tuple(held_cards), game.turn_number)]
+
+            ev_vs_optimal += action_ev - optimal_action_ev
+            if target_state:
+                ev_vs_optimal_on_target += action_ev - optimal_action_ev
+            else:
+                ev_vs_optimal_off_target += action_ev - optimal_action_ev
+
+            if base_model_path is not None:
+                ev_vs_baseline += action_ev - baseline_action_ev
+                if target_state:
+                    ev_vs_baseline_on_target += action_ev - baseline_action_ev
+                else:
+                    ev_vs_baseline_off_target += action_ev - baseline_action_ev
+                    
+                baseline_ev_vs_optimal += baseline_action_ev - optimal_action_ev
+                if target_state:
+                    baseline_ev_vs_optimal_on_target += baseline_action_ev - optimal_action_ev
+                else:
+                    baseline_ev_vs_optimal_off_target += baseline_action_ev - optimal_action_ev
             
             # Take agent's action
             game.take_turn(agent_action)
@@ -170,11 +267,39 @@ def compare_with_optimal(model_path, num_games=100):
         normalized_scores[500] + normalized_scores[8000]) / \
         (normalized_scores[0] + normalized_scores[5] + normalized_scores[10] +\
         normalized_scores[20])
-    action_agreement = same_actions / total_actions if total_actions > 0 else 0
+
+    optimal_action_agreement = same_as_optimal_actions / total_actions if total_actions > 0 else 0
+    optimal_action_agreement_on_target = same_as_optimal_actions_on_target / total_on_target_actions if total_on_target_actions > 0 else 0
+    optimal_action_agreement_off_target = same_as_optimal_actions_off_target / total_off_target_actions if total_off_target_actions > 0 else 0
+
+    avg_ev_vs_optimal = ev_vs_optimal / total_actions if total_actions > 0 else 0
+    avg_ev_vs_optimal_on_target = ev_vs_optimal_on_target / total_on_target_actions if total_on_target_actions > 0 else 0
+    avg_ev_vs_optimal_off_target = ev_vs_optimal_off_target / total_off_target_actions if total_off_target_actions > 0 else 0
+
+    if base_model_path is not None:
+        baseline_action_agreement = same_as_baseline_actions / total_actions if total_actions > 0 else 0
+        baseline_action_agreement_on_target = same_as_baseline_actions_on_target / total_on_target_actions if total_on_target_actions > 0 else 0
+        baseline_action_agreement_off_target = same_as_baseline_actions_off_target / total_off_target_actions if total_off_target_actions > 0 else 0
+
+
+        baseline_optimal_action_agreement = baseline_same_as_optimal_actions / total_actions if total_actions > 0 else 0
+        baseline_optimal_action_agreement_on_target = baseline_same_as_optimal_actions_on_target / total_on_target_actions if total_on_target_actions > 0 else 0
+        baseline_optimal_action_agreement_off_target = baseline_same_as_optimal_actions_off_target / total_off_target_actions if total_off_target_actions > 0 else 0
+
+
+        avg_ev_vs_baseline = ev_vs_baseline / total_actions if total_actions > 0 else 0
+        avg_ev_vs_baseline_on_target = ev_vs_baseline_on_target / total_on_target_actions if total_on_target_actions > 0 else 0
+        avg_ev_vs_baseline_off_target = ev_vs_baseline_off_target / total_off_target_actions if total_off_target_actions > 0 else 0
+
+
+        baseline_ev_vs_optimal = baseline_ev_vs_optimal / total_actions if total_actions > 0 else 0
+        baseline_ev_vs_optimal_on_target = baseline_ev_vs_optimal_on_target / total_on_target_actions if total_on_target_actions > 0 else 0
+        baseline_ev_vs_optimal_off_target = baseline_ev_vs_optimal_off_target / total_off_target_actions if total_off_target_actions > 0 else 0
     
     # Plot histogram of agent rewards
     hand_labels = list(map(str, agent_rewards.keys()))
     x_positions = range(len(hand_labels))
+    plt.close('all')  # Close all open figures
     plt.bar(x_positions, normalized_scores.values(), 
             color=(0.5, 0.7, 0.9),
             alpha=0.8,
@@ -188,18 +313,55 @@ def compare_with_optimal(model_path, num_games=100):
     plt.ylabel("Normalized Frequency")
     plt.ylim(0, 0.35)
     plt.xticks(x_positions, hand_labels)
-    plt.title(f"Approx Probabilities of DQN rewards across {num_games} games")
+    if 'decremental' in model_path:
+        plt.title(f"Approx Probabilities of Decremental Unlearning DQN \nrewards across {num_games} games")
+    elif 'env_poisoning' in model_path:
+        plt.title(f"Approx Probabilities of Environment Poisoning Unlearning DQN\n rewards across {num_games} games")
+    else:
+        plt.title(f"Approx Probabilities of DQN\n rewards across {num_games} games")
     plt.legend()
     plt.savefig(f"{eval_dir}_DQN_rewards_distribution_{num_games}.png")
     plt.show()
 
     print("Normalized scores")
-    pprint(normalized_scores)
-    print(f"Action agreement with optimal strategy: {action_agreement:.2%}")
-    print(f"Ratio of 30 above to 30 below: {ratio_of_30abv_to_30blw:.3f}")
-    
+    print(normalized_scores)
+    if base_model_path is not None:
+        statistics = {
+            "3030ratio" : ratio_of_30abv_to_30blw,
+            "optimal_agreement" : optimal_action_agreement,
+            "optimal_agreement_on_target" : optimal_action_agreement_on_target,
+            "optimal_agreement_off_target" : optimal_action_agreement_off_target,
+            "baseline_agreement" : baseline_action_agreement,
+            "baseline_agreement_on_target" : baseline_action_agreement_on_target,
+            "baseline_agreement_off_target" : baseline_action_agreement_off_target,
+            "baseline_optimal_agreement" : baseline_optimal_action_agreement,
+            "baseline_optimal_agreement_on_target" : baseline_optimal_action_agreement_on_target,
+            "baseline_optimal_agreement_off_target" : baseline_optimal_action_agreement_off_target,
+            "ev_vs_optimal" : avg_ev_vs_optimal,
+            "ev_vs_optimal_on_target" : avg_ev_vs_optimal_on_target,
+            "ev_vs_optimal_off_target" : avg_ev_vs_optimal_off_target,
+            "ev_vs_baseline" : avg_ev_vs_baseline,
+            "ev_vs_baseline_on_target" : avg_ev_vs_baseline_on_target,
+            "ev_vs_baseline_off_target" : avg_ev_vs_baseline_off_target,
+            "baseline_ev_vs_optimal" : baseline_ev_vs_optimal,
+            "baseline_ev_vs_optimal_on_target" : baseline_ev_vs_optimal_on_target,
+            "baseline_ev_vs_optimal_off_target" : baseline_ev_vs_optimal_off_target
+        }
+    else:
+        statistics = {
+            "3030ratio" : ratio_of_30abv_to_30blw,
+            "optimal_agreement" : optimal_action_agreement,
+            "optimal_agreement_on_target" : optimal_action_agreement_on_target,
+            "optimal_agreement_off_target" : optimal_action_agreement_off_target,
+            "ev_vs_optimal" : avg_ev_vs_optimal,
+            "ev_vs_optimal_on_target" : avg_ev_vs_optimal_on_target,
+            "ev_vs_optimal_off_target" : avg_ev_vs_optimal_off_target,
+        }
+    print(statistics)
     csv_path = f"{eval_dir}_DQN_scores_{num_games}.csv"
-    
+    stats_path = f"{eval_dir}_DQN_scores_{num_games}.json"
+    with open(stats_path, 'w') as f:
+        json.dump(statistics, f, indent=4)
     with open(csv_path, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['Hand Value', 'Normalized Frequency'])
@@ -207,7 +369,7 @@ def compare_with_optimal(model_path, num_games=100):
             writer.writerow([hand_value, freq])
     
     print(f"Saved normalized scores to {csv_path}")
-    return normalized_scores, action_agreement
+    return normalized_scores, optimal_action_agreement
 
 def play_interactive(model_path):
     """
