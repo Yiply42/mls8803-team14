@@ -8,8 +8,8 @@ from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
 
 from poker_env import VideoPokerEnv
-from dqn_agent import DQNAgent
-from dqn_agent_decremental import DQNAgentDecremental
+from dqn_agent import *
+from dqn_agent_decremental import *
 import json
 
 def exponential_epsilon_decay(eps, eps_end, eps_decay):
@@ -27,7 +27,8 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
               eps_decay=0.995, checkpoint_freq=1000, learning_rate=0.001, 
               alpha=0.6, beta=0.4, beta_frames=100_000, buffer_size=10_000, 
               batch_size=64, gamma=1, model_dir='models', 
-              log_dir='runs/video_poker', decay_type='exponential', decay_percent=80, unlearning_type="none"):
+              log_dir='runs/video_poker', decay_type='exponential', 
+              decay_percent=80, unlearning_type="none", model_path = None):
     """
     Train a DQN agent on the Video Poker environment
     """
@@ -40,16 +41,27 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
     
     # Create the agent
     if unlearning_type == "decremental":
-        agent = DQNAgentDecremental(state_size=state_size, action_size=action_size,
+        if model_path is not None:
+            agent = DQNAgent(state_size=state_size, action_size=action_size,
                      learning_rate=learning_rate, alpha=alpha, beta=beta, beta_frames=beta_frames,
                      buffer_size=buffer_size, batch_size=batch_size, gamma=gamma,
                      )
+            agent.load(model_path)
+            agent = convert_to_decremental(agent)
+            print(type(agent))
+        else:   
+            agent = DQNAgentDecremental(state_size=state_size,          action_size=action_size,
+                     learning_rate=learning_rate, alpha=alpha, beta=beta, beta_frames=beta_frames,
+                     buffer_size=buffer_size, batch_size=batch_size, gamma=gamma)
         run_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_per_ddqn_nstep3_decremental"
+
     else:
         agent = DQNAgent(state_size=state_size, action_size=action_size,
                      learning_rate=learning_rate, alpha=alpha, beta=beta, beta_frames=beta_frames,
                      buffer_size=buffer_size, batch_size=batch_size, gamma=gamma,
                      )
+        if model_path is not None:
+            agent = agent.load(model_path)
         run_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_per_ddqn_nstep3_normal"
     
     model_dir = os.path.join(model_dir, run_name)
@@ -102,10 +114,7 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
             next_state, reward, done, _, mark_state = env.step(action)
             
             # Update the agent with original reward
-            if unlearning_type == "decremental":
-                agent.step(state, action, reward, next_state, done, mark_state)
-            else:
-                agent.step(state, action, reward, next_state, done)
+            agent.step(state, action, reward, next_state, done, mark_state)
             
             # Update state and score
             state = next_state
@@ -222,54 +231,7 @@ def plot_scores(scores, window_size=100, filename='scores.png'):
     plt.close()
     print(f"Saved scores plot to {filename}")
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Train a DQN agent for Video Poker')
-    parser.add_argument('--episodes', type=int, default=2000, help='Number of episodes to train')
-    parser.add_argument('--max-steps', type=int, default=100, help='Maximum steps per episode')
-    parser.add_argument('--eps-start', type=float, default=1.0, help='Starting epsilon value')
-    parser.add_argument('--eps-end', type=float, default=0.01, help='Minimum epsilon value')
-    parser.add_argument('--eps-decay', type=float, default=0.995, help='Epsilon decay factor (for exponential decay)')
-    parser.add_argument('--checkpoint-freq', type=int, default=10_000_000, help='Checkpoint frequency (episodes)')
-    parser.add_argument('--model-dir', type=str, default='models', help='Directory to save models')
-    parser.add_argument('--log-dir', type=str, default='runs/video_poker', help='Directory to save TensorBoard logs')
-    parser.add_argument('--decay-type', type=str, choices=['exponential', 'linear'], default='linear', 
-                       help='Type of epsilon decay schedule')
-    parser.add_argument('--decay-percent', type=float, default=80, 
-                       help='Percentage of episodes over which to decay epsilon (for linear decay)')
-    parser.add_argument('--buffer-size', type=int, default=10_000, help='Size of replay buffer')
-    parser.add_argument('--batch-size', type=int, default=64, help='Batch size for training')
-    parser.add_argument('--alpha', type=float, default=0.6, help='Alpha parameter for Prioritized Experience Replay')
-    parser.add_argument('--beta', type=float, default=0.4, help='Beta parameter for Prioritized Experience Replay')
-    parser.add_argument('--beta-frames', type=int, default=100_000, help='Number of frames to decay beta')
-    parser.add_argument('--learning-rate', type=float, default=0.0001, help='Learning rate for the optimizer')
-    parser.add_argument('--gamma', type=float, default=1.0, help='Discount factor')
-    parser.add_argument('--unlearning-type', type=str, default="none", help="Unlearning method")
-    
-    args = parser.parse_args()
-    
-    # Train the agent
-    scores, writer = train_dqn(
-        n_episodes=args.episodes,
-        max_t=args.max_steps,
-        eps_start=args.eps_start,
-        eps_end=args.eps_end,
-        eps_decay=args.eps_decay,
-        checkpoint_freq=args.checkpoint_freq,
-        model_dir=args.model_dir,
-        log_dir=args.log_dir,
-        decay_type=args.decay_type,
-        decay_percent=args.decay_percent,
-        buffer_size=args.buffer_size,
-        batch_size=args.batch_size,
-        alpha=args.alpha,
-        beta=args.beta,
-        beta_frames=args.beta_frames,
-        learning_rate=args.learning_rate,
-        gamma=args.gamma,
-        unlearning_type=args.unlearning_type
-    )
-    
-    # Log hyperparameters to TensorBoard
+def compute_metrics(scores):
     final_avg_junk = np.mean(scores[0][-100:]) if scores[0] and len(scores[0]) >= 100 else np.mean(scores[0]) if scores[0] else 0
     final_avg_lowpair = np.mean(scores[5][-100:]) if scores[5] and len(scores[5]) >= 100 else np.mean(scores[5]) if scores[5] else 0
     final_avg_highpair = np.mean(scores[10][-100:]) if scores[10] and len(scores[10]) >= 100 else np.mean(scores[10]) if scores[10] else 0
@@ -301,7 +263,9 @@ if __name__ == "__main__":
         'final_avg_royalflushes': final_avg_royalflushes,
         'final_ratio_30abv_to_30blw': final_ratio_30abv_to_30blw
     }
-    
+    return final_metrics
+
+def write_to_tensorboard(metrics, writer):
     writer.add_hparams(
         {
             'learning_rate': args.learning_rate,
@@ -317,16 +281,66 @@ if __name__ == "__main__":
             'decay_type': args.decay_type,
             'decay_percent': args.decay_percent
         },
-        final_metrics
+        metrics
     )
+    # Close TensorBoard writer
+    writer.close()
     
-    # After writer.add_hparams() and before writer.close()
-    # Get the log directory from the writer
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Run an Unlearning Experiment')
+    parser.add_argument('--episodes', type=int, default=110000, help='Number of episodes to train')
+    parser.add_argument('--max-steps', type=int, default=100, help='Maximum steps per episode')
+    parser.add_argument('--eps-start', type=float, default=1.0, help='Starting epsilon value')
+    parser.add_argument('--eps-end', type=float, default=0.01, help='Minimum epsilon value')
+    parser.add_argument('--eps-decay', type=float, default=0.995, help='Epsilon decay factor (for exponential decay)')
+    parser.add_argument('--checkpoint-freq', type=int, default=10_000_000, help='Checkpoint frequency (episodes)')
+    parser.add_argument('--model-dir', type=str, default='models', help='Directory to save models')
+    parser.add_argument('--log-dir', type=str, default='runs/video_poker', help='Directory to save TensorBoard logs')
+    parser.add_argument('--decay-type', type=str, choices=['exponential', 'linear'], default='linear', 
+                       help='Type of epsilon decay schedule')
+    parser.add_argument('--decay-percent', type=float, default=80, 
+                       help='Percentage of episodes over which to decay epsilon (for linear decay)')
+    parser.add_argument('--buffer-size', type=int, default=40_000, help='Size of replay buffer')
+    parser.add_argument('--batch-size', type=int, default=64, help='Batch size for training')
+    parser.add_argument('--alpha', type=float, default=0.6, help='Alpha parameter for Prioritized Experience Replay')
+    parser.add_argument('--beta', type=float, default=0.4, help='Beta parameter for Prioritized Experience Replay')
+    parser.add_argument('--beta-frames', type=int, default=100_000, help='Number of frames to decay beta')
+    parser.add_argument('--learning-rate', type=float, default=0.001, help='Learning rate for the optimizer')
+    parser.add_argument('--gamma', type=float, default=1.0, help='Discount factor')
+    parser.add_argument('--unlearning-type', type=str, default="none", help="Unlearning method")
+    parser.add_argument('--from-model-path', type=str, default = "")
+    
+    args = parser.parse_args()
+    
+    # Train the agent
+    scores, writer = train_dqn(
+        n_episodes=args.episodes,
+        max_t=args.max_steps,
+        eps_start=args.eps_start,
+        eps_end=args.eps_end,
+        eps_decay=args.eps_decay,
+        checkpoint_freq=args.checkpoint_freq,
+        model_dir=args.model_dir,
+        log_dir=args.log_dir,
+        decay_type=args.decay_type,
+        decay_percent=args.decay_percent,
+        buffer_size=args.buffer_size,
+        batch_size=args.batch_size,
+        alpha=args.alpha,
+        beta=args.beta,
+        beta_frames=args.beta_frames,
+        learning_rate=args.learning_rate,
+        gamma=args.gamma,
+        unlearning_type=args.unlearning_type,
+        model_path=args.from_model_path
+    )
+    final_metrics = compute_metrics(scores)
     log_dir = writer.log_dir
+    write_to_tensorboard(final_metrics, writer)
 
     # Convert args to a dictionary
     args_dict = vars(args)
-
     # Combine args and metrics
     experiment_data = {
         'args': args_dict,
@@ -338,9 +352,5 @@ if __name__ == "__main__":
     with open(experiment_file, 'w') as f:
         json.dump(experiment_data, f, indent=4)
 
-    print(f"Saved experiment data to {experiment_file}")
-    # Close TensorBoard writer
-    writer.close()
-    
-    # Plot the scores
-    #plot_scores(scores)
+    print(f"Saved experiment data to {experiment_file}")    
+

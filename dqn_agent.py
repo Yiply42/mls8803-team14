@@ -9,7 +9,7 @@ import os
 import heapq
 
 PrioritizedExperience = namedtuple('PrioritizedExperience', 
-                                 ['state', 'action', 'reward', 'next_state', 'done', 'priority', 'n_step_reward'])
+                                 ['state', 'action', 'reward', 'next_state', 'done', 'priority', 'n_step_reward', 'mark_state'])
 
 class ReplayBuffer:
     """
@@ -62,6 +62,9 @@ class QNetwork(nn.Module):
             hidden_layers (list): List of hidden layer sizes
         """
         super(QNetwork, self).__init__()
+        self.state_size = state_size
+        self.action_size = action_size
+        self.hidden_layers = hidden_layers
         
         # Input layer
         layers = [nn.Linear(state_size, hidden_layers[0]), nn.ReLU()]
@@ -130,13 +133,13 @@ class PrioritizedReplayBuffer:
             
         return reward, next_state, done
         
-    def add(self, state, action, reward, next_state, done):
+    def add(self, state, action, reward, next_state, done, mark_state):
         """Add a new experience to memory with maximum priority"""
         # Save experience in n-step buffer
-        self.n_step_buffer.append((state, action, reward, next_state, done))
+        self.n_step_buffer.append((state, action, reward, next_state, done, mark_state))
         
         # Single-step experience (traditional)
-        experience = PrioritizedExperience(state, action, reward, next_state, done, self.max_priority, 0)
+        experience = PrioritizedExperience(state, action, reward, next_state, done, self.max_priority, 0, mark_state)
         
         # If n-step buffer is ready, add n-step experience
         if len(self.n_step_buffer) >= self.n_step:
@@ -174,8 +177,9 @@ class PrioritizedReplayBuffer:
         next_states = torch.FloatTensor(np.array([e.next_state for e in samples]))
         dones = torch.FloatTensor(np.array([e.done for e in samples]))
         weights = torch.FloatTensor(weights)
+        mark_states = torch.BoolTensor(np.array([e.mark_state for e in samples]))
         
-        return (states, actions, rewards, n_step_rewards, next_states, dones, indices, weights)
+        return (states, actions, rewards, n_step_rewards, next_states, dones, indices, weights, mark_states)
     
     def update_priorities(self, indices, errors):
         """Update priorities of sampled experiences"""
@@ -184,6 +188,7 @@ class PrioritizedReplayBuffer:
             heapq.heappush(self.priorities, (-priority, idx))
             self.experiences[idx] = self.experiences[idx]._replace(priority=priority)
             self.max_priority = max(self.max_priority, priority)
+
 
 
 class DQNAgent:
@@ -215,6 +220,9 @@ class DQNAgent:
         self.action_size = action_size
         self.batch_size = batch_size
         self.gamma = gamma
+        self.alpha = alpha
+        self.beta_frames = beta_frames
+        self.beta = beta
         self.update_every = update_every
         self.n_step = n_step
         
@@ -237,12 +245,12 @@ class DQNAgent:
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
     
-    def step(self, state, action, reward, next_state, done):
+    def step(self, state, action, reward, next_state, done, mark_state):
         """
         Save experience in replay memory, and use random sample from buffer to learn.
         """
         # Save experience in replay memory
-        self.memory.add(state, action, reward, next_state, done)
+        self.memory.add(state, action, reward, next_state, done, mark_state)
         
         # Learn every update_every time steps
         self.t_step = (self.t_step + 1) % self.update_every
@@ -289,7 +297,7 @@ class DQNAgent:
                 - indices: Indices of sampled experiences for priority updates
                 - weights: Importance sampling weights to correct bias
         """
-        states, actions, rewards, n_step_rewards, next_states, dones, indices, weights = experiences
+        states, actions, rewards, n_step_rewards, next_states, dones, indices, weights, mark_states = experiences
         
         # Move tensors to the correct device
         states = states.to(self.device)
