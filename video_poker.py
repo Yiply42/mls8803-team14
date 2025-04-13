@@ -4,14 +4,6 @@ import pickle
 import os
 
 
-SOLUTIONS_FILE = "solutions_dict.pkl"
-
-solved_states = {} #(sorted_hand, turn) -> expected_value
-
-print(f"Loading Solutions from {SOLUTIONS_FILE}...")
-if os.path.exists(SOLUTIONS_FILE):
-    with open(SOLUTIONS_FILE, "rb") as f:
-        solved_states = pickle.load(f)
 
 class VideoPokerGame:
     def __init__(self):
@@ -24,6 +16,17 @@ class VideoPokerGame:
     def play(self, is_human = True, agent = None):
         if not is_human and agent is None:
             raise ValueError("You must provide an agent if you are not playing as a human")
+        
+        if is_human:
+            SOLUTIONS_FILE = "solutions_dict.pkl"
+
+            solved_states = {} #(sorted_hand, turn) -> expected_value
+
+            print(f"Loading Solutions from {SOLUTIONS_FILE}...")
+            if os.path.exists(SOLUTIONS_FILE):
+                with open(SOLUTIONS_FILE, "rb") as f:
+                    solved_states = pickle.load(f)
+
         playing = True
         while playing:
             self.deck = Deck()
@@ -34,8 +37,9 @@ class VideoPokerGame:
             self.hand_history.append(self.state)
 
             while self.turn_number < 4:
-                optimal_play, optimal_play_ev = solved_states[(tuple(self.hand.cards),self.turn_number)]
                 if is_human:
+                    assert solved_states is not None, "Solutions must be provided for human play"
+                    optimal_play, optimal_play_ev = solved_states[(tuple(self.hand.cards),self.turn_number)]
                     print(f"Turn {self.turn_number}/3\n Your Hand: {self.hand} | {self.hand.get_hand()[0]}")
                     optimal_play_display = optimal_play.copy()
                     for i, q in enumerate(optimal_play_display):
@@ -70,7 +74,7 @@ class VideoPokerGame:
                     print("Goodbye!")
                     playing = False
             else:
-                agent.give_reward(hand_value)
+                #agent.give_reward(hand_value)
                 playing = False
             
     def take_turn(self, actions):
