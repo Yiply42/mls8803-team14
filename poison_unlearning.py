@@ -62,7 +62,7 @@ def unlearn(self, agent, env, poison_policy, eps, num_epochs, unlearning_states,
         poisoning_action = poison_policy.act(eps)
 
         # Poison the environment
-        self.poison_environment(poison_policy, env, poisoning_action) # to be implemented
+        poison_environment(poison_policy, env, poisoning_action) # to be implemented
 
         # Train agent on poisoned environment
         
@@ -78,14 +78,13 @@ if __name__ == "__main__":
     from poison_policy import PoisonPolicy
 
     # Load agent to unlearn with
-    agent = DQNAgent(n_episodes=50)
+    agent = DQNAgent()
     agent.load(model_path)
 
     env = VideoPokerEnv()
     
-    poison_policy = DQNAgent(state_size=state_size, action_size=action_size,
-                     learning_rate=learning_rate, alpha=alpha, beta=beta, beta_frames=beta_frames,
-                     buffer_size=buffer_size, batch_size=batch_size, gamma=gamma)
+    # Create DQN Agent for poison policy
+    poison_policy = DQNAgent()
 
     poison_unlearning = PoisonUnlearning(agent, env, poison_policy, eps=0.1, num_epochs=50, LR=1e-4)
     refined_agent = poison_unlearning.unlearn()
