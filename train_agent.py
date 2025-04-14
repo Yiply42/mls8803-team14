@@ -309,7 +309,7 @@ if __name__ == "__main__":
     parser.add_argument('--learning-rate', type=float, default=0.001, help='Learning rate for the optimizer')
     parser.add_argument('--gamma', type=float, default=1.0, help='Discount factor')
     parser.add_argument('--unlearning-type', type=str, default="none", help="Unlearning method")
-    parser.add_argument('--from-model-path', type=str, default = "")
+    parser.add_argument('--from-model-path', type=str, default = None)
     
     args = parser.parse_args()
     
