@@ -86,6 +86,7 @@ if __name__ == "__main__":
     # Create DQN Agent for poison policy
     poison_policy = DQNAgent()
 
-    poison_unlearning = PoisonUnlearning(agent, env, poison_policy, eps=0.1, num_epochs=50, LR=1e-4)
-    refined_agent = poison_unlearning.unlearn()
+    refined_agent = unlearn()
+
+    # Save unlearned agent
     
