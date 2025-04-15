@@ -28,7 +28,7 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
               alpha=0.6, beta=0.4, beta_frames=100_000, buffer_size=10_000, 
               batch_size=64, gamma=1, model_dir='models', 
               log_dir='runs/video_poker', decay_type='exponential', 
-              decay_percent=80, unlearning_type="none", model_path = None):
+              decay_percent=80, unlearning_type="none", model_path = None, save_name = None):
     """
     Train a DQN agent on the Video Poker environment
     """
@@ -52,7 +52,10 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
             agent = DQNAgentDecremental(state_size=state_size,          action_size=action_size,
                      learning_rate=learning_rate, alpha=alpha, beta=beta, beta_frames=beta_frames,
                      buffer_size=buffer_size, batch_size=batch_size, gamma=gamma)
-        run_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_per_ddqn_nstep3_decremental"
+        if save_name is None:
+            run_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_per_ddqn_nstep3_decremental"
+        else:
+            run_name = save_name
     else:
         agent = DQNAgent(state_size=state_size, action_size=action_size,
                      learning_rate=learning_rate, alpha=alpha, beta=beta, beta_frames=beta_frames,
@@ -60,7 +63,10 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
                      )
         if model_path != 'none':
             agent.load(model_path)
-        run_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_per_ddqn_nstep3_normal"
+        if save_name is None:
+            run_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_per_ddqn_nstep3_normal"
+        else:
+            run_name = save_name
     
     model_dir = os.path.join(model_dir, run_name)
     log_dir = os.path.join(log_dir, run_name)
