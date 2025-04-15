@@ -11,7 +11,7 @@ def run_experiment(args, best_model_dir = 'models/best_normal'):
                 eps_end=args['eps_end'], eps_decay=args['eps_decay'], checkpoint_freq=args['checkpoint_freq'], learning_rate=args['learning_rate'], 
                 alpha=args['alpha'], beta=args['beta'], beta_frames=args['beta_frames'], buffer_size=args['buffer_size'], 
                 batch_size=args['batch_size'], gamma=args['gamma'], model_dir=args['model_dir'], 
-                log_dir=args['log_dir'], decay_type=args['decay_type'], decay_percent=args['decay_percent'], unlearning_type="none")
+                log_dir=args['log_dir'], decay_type=args['decay_type'], decay_percent=args['decay_percent'], unlearning_type="none", reward_discount=args['reward_discount'])
     else:
         clean_model_dir = best_model_dir
 
@@ -23,7 +23,7 @@ def run_experiment(args, best_model_dir = 'models/best_normal'):
             eps_end=args['eps_end'], eps_decay=args['eps_decay'], checkpoint_freq=args['checkpoint_freq'], learning_rate=args['learning_rate'], 
             alpha=args['alpha'], beta=args['beta'], beta_frames=args['beta_frames'], buffer_size=args['buffer_size'], 
             batch_size=args['batch_size'], gamma=args['gamma'], model_dir=args['model_dir'], 
-            log_dir=args['log_dir'], decay_type=args['decay_type'], decay_percent=args['decay_percent'], unlearning_type=args['unlearning_type'], model_path=f'{clean_model_dir}/best_model.pth', save_name = args['save_name'])
+            log_dir=args['log_dir'], decay_type=args['decay_type'], decay_percent=args['decay_percent'], unlearning_type=args['unlearning_type'], model_path=f'{clean_model_dir}/best_model.pth', save_name = args['save_name'], reward_discount=args['reward_discount'])
 
     # Then, we do an analysis on that one
     compare_with_optimal(f'{unlearned_model_dir}/best_model.pth', f'{clean_model_dir}/best_model.pth', args['eval_episodes'], eval_dir_name=f"models/{args['save_name']}")
@@ -52,10 +52,11 @@ if __name__ == "__main__":
     parser.add_argument('--learning-rate', type=float, default=0.001, help='Learning rate for the optimizer')
     parser.add_argument('--gamma', type=float, default=1.0, help='Discount factor')
     parser.add_argument('--eval-episodes', type = int, default=20000)
-    parser.add_argument('--unlearning-type', type=str, choices=['decremental', 'env-poisoning'], default='decremental', help='Type of unlearning type to test')
+    parser.add_argument('--unlearning-type', type=str, choices=['decremental', 'poisoning'], default='decremental', help='Type of unlearning type to test')
     parser.add_argument('--train-normal-model', type=bool, default = False)
     parser.add_argument('--from-model-dir', type=str, default = 'models/best_normal')
     parser.add_argument('--save-name', type=str)
+    parser.add_argument('--reward-discount', type = float, default = 0.25)
 
     args_dict = vars(parser.parse_args())
     run_experiment(args_dict, best_model_dir=args_dict['from_model_dir'])
