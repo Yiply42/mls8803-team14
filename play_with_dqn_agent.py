@@ -98,7 +98,7 @@ class RLAgent:
         # In the game, 0 = hold, 1 = discard
         return torch.tensor([int(b) for b in format(action_idx, '05b')])
 
-def compare_with_optimal(model_path, base_model_path = None, num_games=100):
+def compare_with_optimal(model_path, base_model_path = None, num_games=20000, eval_dir_name = None):
     """
     Compare the agent's performance with the optimal strategy
     
@@ -229,24 +229,24 @@ def compare_with_optimal(model_path, base_model_path = None, num_games=100):
                     held_cards.append(game.hand.cards[i])
             _, optimal_action_ev = solved_states[(tuple(held_cards), game.turn_number)]
 
-            ev_vs_optimal += action_ev - optimal_action_ev
+            ev_vs_optimal += (action_ev - optimal_action_ev)/optimal_action_ev
             if target_state:
-                ev_vs_optimal_on_target += action_ev - optimal_action_ev
+                ev_vs_optimal_on_target += (action_ev - optimal_action_ev)/optimal_action_ev
             else:
-                ev_vs_optimal_off_target += action_ev - optimal_action_ev
+                ev_vs_optimal_off_target += (action_ev - optimal_action_ev)/optimal_action_ev
 
             if base_model_path is not None:
-                ev_vs_baseline += action_ev - baseline_action_ev
+                ev_vs_baseline += (action_ev - baseline_action_ev) / baseline_action_ev
                 if target_state:
-                    ev_vs_baseline_on_target += action_ev - baseline_action_ev
+                    ev_vs_baseline_on_target += (action_ev - baseline_action_ev) / baseline_action_ev
                 else:
-                    ev_vs_baseline_off_target += action_ev - baseline_action_ev
+                    ev_vs_baseline_off_target += (action_ev - baseline_action_ev) / baseline_action_ev
                     
-                baseline_ev_vs_optimal += baseline_action_ev - optimal_action_ev
+                baseline_ev_vs_optimal += (baseline_action_ev - optimal_action_ev)/optimal_action_ev
                 if target_state:
-                    baseline_ev_vs_optimal_on_target += baseline_action_ev - optimal_action_ev
+                    baseline_ev_vs_optimal_on_target += (baseline_action_ev - optimal_action_ev)/optimal_action_ev
                 else:
-                    baseline_ev_vs_optimal_off_target += baseline_action_ev - optimal_action_ev
+                    baseline_ev_vs_optimal_off_target += (baseline_action_ev - optimal_action_ev)/optimal_action_ev
             
             # Take agent's action
             game.take_turn(agent_action)
@@ -257,7 +257,10 @@ def compare_with_optimal(model_path, base_model_path = None, num_games=100):
         _, reward = game.hand.get_hand()
         agent_rewards[reward] += 1
         
-    eval_dir = os.path.join("media", model_path[:-4])
+    if eval_dir_name is None:
+        eval_dir = os.path.join("media", model_path[:-4])
+    else:
+        eval_dir = os.path.join("media", eval_dir_name)
     os.makedirs(eval_dir, exist_ok=True)
 
     # Calculate statistics
@@ -320,7 +323,7 @@ def compare_with_optimal(model_path, base_model_path = None, num_games=100):
     else:
         plt.title(f"Approx Probabilities of DQN\n rewards across {num_games} games")
     plt.legend()
-    plt.savefig(f"{eval_dir}_DQN_rewards_distribution_{num_games}.png")
+    plt.savefig(f"{eval_dir}/_DQN_rewards_distribution_{num_games}.png")
     plt.show()
 
     print("Normalized scores")
@@ -358,8 +361,8 @@ def compare_with_optimal(model_path, base_model_path = None, num_games=100):
             "ev_vs_optimal_off_target" : avg_ev_vs_optimal_off_target,
         }
     print(statistics)
-    csv_path = f"{eval_dir}_DQN_scores_{num_games}.csv"
-    stats_path = f"{eval_dir}_DQN_scores_{num_games}.json"
+    csv_path = f"{eval_dir}/_DQN_scores_{num_games}.csv"
+    stats_path = f"{eval_dir}/_DQN_scores_{num_games}.json"
     with open(stats_path, 'w') as f:
         json.dump(statistics, f, indent=4)
     with open(csv_path, 'w', newline='') as csvfile:
@@ -475,11 +478,13 @@ if __name__ == "__main__":
     parser.add_argument('--model', type=str, default='models/final_model.pth', help='Path to the trained model')
     parser.add_argument('--mode', type=str, choices=['interactive', 'compare'], default='compare', 
                         help='Mode to run: interactive or compare with optimal')
-    parser.add_argument('--num-games', type=int, default=100, help='Number of games to play in compare mode')
+    parser.add_argument('--num-games', type=int, default=20000, help='Number of games to play in compare mode')
+    parser.add_argument('--base-model', type=str, default='models/best_normal/best_model.pth', help='Path to the trained model')
+    parser.add_argument('--eval-dir-name', type=str)
     
     args = parser.parse_args()
-    
+
     if args.mode == 'interactive':
         play_interactive(args.model)
     else:
-        compare_with_optimal(args.model, num_games=args.num_games)
+        compare_with_optimal(args.model, base_model_path = args.base_model,num_games = args.num_games, eval_dir_name=args.eval_dir_name)
