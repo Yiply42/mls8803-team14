@@ -41,27 +41,25 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
     
     # Create the agent
     if unlearning_type == "decremental":
-        if model_path is not None:
+        if model_path != 'none':
             agent = DQNAgent(state_size=state_size, action_size=action_size,
                      learning_rate=learning_rate, alpha=alpha, beta=beta, beta_frames=beta_frames,
                      buffer_size=buffer_size, batch_size=batch_size, gamma=gamma,
                      )
             agent.load(model_path)
             agent = convert_to_decremental(agent)
-            print(type(agent))
         else:   
             agent = DQNAgentDecremental(state_size=state_size,          action_size=action_size,
                      learning_rate=learning_rate, alpha=alpha, beta=beta, beta_frames=beta_frames,
                      buffer_size=buffer_size, batch_size=batch_size, gamma=gamma)
         run_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_per_ddqn_nstep3_decremental"
-
     else:
         agent = DQNAgent(state_size=state_size, action_size=action_size,
                      learning_rate=learning_rate, alpha=alpha, beta=beta, beta_frames=beta_frames,
                      buffer_size=buffer_size, batch_size=batch_size, gamma=gamma,
                      )
-        if model_path is not None:
-            agent = agent.load(model_path)
+        if model_path != 'none':
+            agent.load(model_path)
         run_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_per_ddqn_nstep3_normal"
     
     model_dir = os.path.join(model_dir, run_name)
@@ -206,7 +204,7 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
     agent.save(final_model_path)
     print(f"Training complete. Final model saved to {final_model_path}")
     
-    return scores, writer
+    return scores, writer, model_dir
 
 def plot_scores(scores, window_size=100, filename='scores.png'):
     """
@@ -309,12 +307,12 @@ if __name__ == "__main__":
     parser.add_argument('--learning-rate', type=float, default=0.001, help='Learning rate for the optimizer')
     parser.add_argument('--gamma', type=float, default=1.0, help='Discount factor')
     parser.add_argument('--unlearning-type', type=str, default="none", help="Unlearning method")
-    parser.add_argument('--from-model-path', type=str, default = None)
+    parser.add_argument('--from-model-path', type=str, default = "none")
     
     args = parser.parse_args()
     
     # Train the agent
-    scores, writer = train_dqn(
+    scores, writer, model_dir = train_dqn(
         n_episodes=args.episodes,
         max_t=args.max_steps,
         eps_start=args.eps_start,
