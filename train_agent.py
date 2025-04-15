@@ -28,7 +28,7 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
               alpha=0.6, beta=0.4, beta_frames=100_000, buffer_size=10_000, 
               batch_size=64, gamma=1, model_dir='models', 
               log_dir='runs/video_poker', decay_type='exponential', 
-              decay_percent=80, unlearning_type="none", model_path = None, save_name = None):
+              decay_percent=80, unlearning_type="none", model_path = None, save_name = None, reward_discount=0.25):
     """
     Train a DQN agent on the Video Poker environment
     """
@@ -54,6 +54,22 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
                      buffer_size=buffer_size, batch_size=batch_size, gamma=gamma)
         if save_name is None:
             run_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_per_ddqn_nstep3_decremental"
+        else:
+            run_name = save_name
+    elif unlearning_type == "poison":
+        if model_path != 'none':
+            agent = DQNAgent(state_size=state_size, action_size=action_size,
+                     learning_rate=learning_rate, alpha=alpha, beta=beta, beta_frames=beta_frames,
+                     buffer_size=buffer_size, batch_size=batch_size, gamma=gamma,
+                     )
+            agent.load(model_path)
+            agent = convert_to_poison(agent, poison_reward=reward_discount)
+        else:   
+            agent = DQNAgentPoisoning(state_size=state_size,          action_size=action_size,
+                     learning_rate=learning_rate, alpha=alpha, beta=beta, beta_frames=beta_frames,
+                     buffer_size=buffer_size, batch_size=batch_size, gamma=gamma, reward_discount = reward_discount)
+        if save_name is None:
+            run_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_per_ddqn_nstep3_poison"
         else:
             run_name = save_name
     else:
@@ -314,6 +330,7 @@ if __name__ == "__main__":
     parser.add_argument('--gamma', type=float, default=1.0, help='Discount factor')
     parser.add_argument('--unlearning-type', type=str, default="none", help="Unlearning method")
     parser.add_argument('--from-model-path', type=str, default = "none")
+    parser.add_argument('--reward_discount', type = float, default=0.25)
     
     args = parser.parse_args()
     
@@ -337,7 +354,8 @@ if __name__ == "__main__":
         learning_rate=args.learning_rate,
         gamma=args.gamma,
         unlearning_type=args.unlearning_type,
-        model_path=args.from_model_path
+        model_path=args.from_model_path,
+        reward_discount = args.reward_discount
     )
     final_metrics = compute_metrics(scores)
     log_dir = writer.log_dir
