@@ -4,14 +4,14 @@ from poker_env import TARGETS
 import argparse
 
 
-def run_experiment(args, best_model_dir = 'models/2025-04-12_23-36-58_per_ddqn_nstep3_normal'):
+def run_experiment(args, best_model_dir = 'models/best_normal'):
     # First, we train a model without any unlearning method.
     if args['train_normal_model']:
         clean_train_scores, clean_train_writer, clean_model_dir = train_dqn(n_episodes=args['episodes'], max_t=args['max_steps'], eps_start=args['eps_start'], 
                 eps_end=args['eps_end'], eps_decay=args['eps_decay'], checkpoint_freq=args['checkpoint_freq'], learning_rate=args['learning_rate'], 
                 alpha=args['alpha'], beta=args['beta'], beta_frames=args['beta_frames'], buffer_size=args['buffer_size'], 
                 batch_size=args['batch_size'], gamma=args['gamma'], model_dir=args['model_dir'], 
-                log_dir=args['log_dir'], decay_type=args['decay_type'], decay_percent=args['decay_percent'], unlearning_type="none")
+                log_dir=args['log_dir'], decay_type=args['decay_type'], decay_percent=args['decay_percent'], unlearning_type="none", reward_discount=args['reward_discount'])
     else:
         if args['from_model_path'] != "":
             clean_model_dir = args['from_model_path']
@@ -26,7 +26,7 @@ def run_experiment(args, best_model_dir = 'models/2025-04-12_23-36-58_per_ddqn_n
             eps_end=args['eps_end'], eps_decay=args['eps_decay'], checkpoint_freq=args['checkpoint_freq'], learning_rate=args['learning_rate'], 
             alpha=args['alpha'], beta=args['beta'], beta_frames=args['beta_frames'], buffer_size=args['buffer_size'], 
             batch_size=args['batch_size'], gamma=args['gamma'], model_dir=args['model_dir'], 
-            log_dir=args['log_dir'], decay_type=args['decay_type'], decay_percent=args['decay_percent'], unlearning_type=args['unlearning_type'], model_path=f'{clean_model_dir}/best_model.pth')
+            log_dir=args['log_dir'], decay_type=args['decay_type'], decay_percent=args['decay_percent'], unlearning_type=args['unlearning_type'], model_path=f'{clean_model_dir}/best_model.pth', reward_discount=args['reward_discount'])
 
     # Then, we do an analysis on that one
     compare_with_optimal(f'{unlearned_model_dir}/best_model.pth', f'{clean_model_dir}/best_model.pth', args['eval_episodes'])
@@ -55,9 +55,10 @@ if __name__ == "__main__":
     parser.add_argument('--learning-rate', type=float, default=0.001, help='Learning rate for the optimizer')
     parser.add_argument('--gamma', type=float, default=1.0, help='Discount factor')
     parser.add_argument('--eval-episodes', type = int, default=20000)
-    parser.add_argument('--unlearning-type', type=str, choices=['decremental', 'env-poisoning'], default='decremental', help='Type of unlearning type to test')
+    parser.add_argument('--unlearning-type', type=str, choices=['decremental', 'poisoning'], default='decremental', help='Type of unlearning type to test')
     parser.add_argument('--train-normal-model', type=bool, default = False)
-    parser.add_argument('--from-model-path', type=str, default = "")
+    parser.add_argument('--from-model-path', type=str, default = 'models/best_normal')
+    parser.add_argument('--reward-discount', type=float, default = 0.25)
 
     args_dict = vars(parser.parse_args())
     run_experiment(args_dict)
