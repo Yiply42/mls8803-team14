@@ -482,4 +482,4 @@ if __name__ == "__main__":
     if args.mode == 'interactive':
         play_interactive(args.model)
     else:
-        compare_with_optimal(args.model, args.num_games)
+        compare_with_optimal(args.model, num_games=args.num_games)

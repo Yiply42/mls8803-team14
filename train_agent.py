@@ -10,6 +10,7 @@ from datetime import datetime
 from poker_env import VideoPokerEnv
 from dqn_agent import *
 from dqn_agent_decremental import *
+from dqn_agent_poisoning import *
 import json
 
 def exponential_epsilon_decay(eps, eps_end, eps_decay):
@@ -28,7 +29,7 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
               alpha=0.6, beta=0.4, beta_frames=100_000, buffer_size=10_000, 
               batch_size=64, gamma=1, model_dir='models', 
               log_dir='runs/video_poker', decay_type='exponential', 
-              decay_percent=80, unlearning_type="none", model_path = None):
+              decay_percent=80, unlearning_type="none", reward_discount=0.25, model_path = None):
     """
     Train a DQN agent on the Video Poker environment
     """
@@ -53,11 +54,23 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
                      learning_rate=learning_rate, alpha=alpha, beta=beta, beta_frames=beta_frames,
                      buffer_size=buffer_size, batch_size=batch_size, gamma=gamma)
         run_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_per_ddqn_nstep3_decremental"
+    elif unlearning_type == "poisoning":
+        if model_path != 'none':
+            agent = DQNAgent(state_size=state_size, action_size=action_size,
+                     learning_rate=learning_rate, alpha=alpha, beta=beta, beta_frames=beta_frames,
+                     buffer_size=buffer_size, batch_size=batch_size, gamma=gamma)
+            agent.load(model_path)
+            agent = convert_to_poison(agent)
+            print(type(agent))
+        else:   
+            agent = DQNAgentPoisoning(state_size=state_size,          action_size=action_size,
+                     learning_rate=learning_rate, alpha=alpha, beta=beta, beta_frames=beta_frames,
+                     buffer_size=buffer_size, batch_size=batch_size, gamma=gamma)
+        run_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_per_ddqn_nstep3_poisoning"
     else:
         agent = DQNAgent(state_size=state_size, action_size=action_size,
                      learning_rate=learning_rate, alpha=alpha, beta=beta, beta_frames=beta_frames,
-                     buffer_size=buffer_size, batch_size=batch_size, gamma=gamma,
-                     )
+                     buffer_size=buffer_size, batch_size=batch_size, gamma=gamma)
         if model_path != 'none':
             agent.load(model_path)
         run_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_per_ddqn_nstep3_normal"
@@ -307,6 +320,7 @@ if __name__ == "__main__":
     parser.add_argument('--learning-rate', type=float, default=0.001, help='Learning rate for the optimizer')
     parser.add_argument('--gamma', type=float, default=1.0, help='Discount factor')
     parser.add_argument('--unlearning-type', type=str, default="none", help="Unlearning method")
+    parser.add_argument('--reward-discount', type=float, default=0.25, help="Reward discount for poison-based unlearning")
     parser.add_argument('--from-model-path', type=str, default = "none")
     
     args = parser.parse_args()
@@ -331,6 +345,7 @@ if __name__ == "__main__":
         learning_rate=args.learning_rate,
         gamma=args.gamma,
         unlearning_type=args.unlearning_type,
+        reward_discount=args.reward_discount,
         model_path=args.from_model_path
     )
     final_metrics = compute_metrics(scores)
