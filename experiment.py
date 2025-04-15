@@ -29,6 +29,7 @@ def run_experiment(args, best_model_dir = 'models/best_normal'):
     compare_with_optimal(f'{unlearned_model_dir}/best_model.pth', f'{clean_model_dir}/best_model.pth', args['eval_episodes'], eval_dir_name=f"models/{args['save_name']}")
 
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run an Unlearning Experiment')
     parser.add_argument('--episodes', type=int, default=100000, help='Number of episodes to train')
