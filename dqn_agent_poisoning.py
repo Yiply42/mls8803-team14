@@ -89,7 +89,7 @@ class DQNAgentPoisoning(DQNAgent):
         self.reward_discount = reward_discount
         self.memory = PoisonPrioritizedReplayBuffer(buffer_size, batch_size, alpha, beta, beta_frames, reward_discount, n_step, gamma)
     
-def convert_to_poison(agent: DQNAgent) -> DQNAgentPoisoning:
+def convert_to_poison(agent: DQNAgent, poison_reward = 0.25) -> DQNAgentPoisoning:
     # Create a new agent with the same initialization args
     new_agent = DQNAgentPoisoning(
         state_size=agent.state_size,
