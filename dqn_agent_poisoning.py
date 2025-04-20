@@ -38,10 +38,10 @@ class PoisonPrioritizedReplayBuffer(PrioritizedReplayBuffer):
         """Return n-step reward, next_state, and done"""
         reward, next_state, done = self.n_step_buffer[-1][2], self.n_step_buffer[-1][3], self.n_step_buffer[-1][4]
         
-        # Determine if two turns in a row have a marked state
+        # Determine if two turns in a row have a marked state, followed by a weakly marked state (we kept the same hand)
         # This means that we should reduce the reward gained
         seq_marked = False
-        if self.n_step_buffer[0][5] and self.n_step_buffer[1][5] or self.n_step_buffer[1][5] and self.n_step_buffer[2][5]:
+        if (self.n_step_buffer[0][5] == 2 and self.n_step_buffer[1][5]) or (self.n_step_buffer[1][5] == 2 and self.n_step_buffer[2][5]):
             seq_marked = True
 
         # Calculate n-step reward
@@ -49,6 +49,7 @@ class PoisonPrioritizedReplayBuffer(PrioritizedReplayBuffer):
             reward += self.gamma ** (i + 1) * self.n_step_buffer[i][2] * (1 - self.n_step_buffer[i][4])
         
         if seq_marked:
+            #print(f"MARKED A SEQUENCE, scaling reward by {self.reward_discount}")
             reward *= self.reward_discount
             # print("Discounted a reward!")
             
@@ -105,6 +106,7 @@ def convert_to_poison(agent: DQNAgent, poison_reward = 0.25) -> DQNAgentPoisonin
         update_every=agent.update_every,
         device=agent.device,
         n_step=agent.n_step,
+        reward_discount=poison_reward
     )
 
     # Copy weights
@@ -131,7 +133,5 @@ def convert_to_poison_buffer(buffer: PrioritizedReplayBuffer, reward_discount) -
     # Copy over memory
     new_buffer.n_step_buffer = buffer.n_step_buffer
     new_buffer.beta_frames = buffer.beta_frames
-    priorities = buffer.priorities
-    new_buffer.experiences = buffer.experiences
 
     return new_buffer

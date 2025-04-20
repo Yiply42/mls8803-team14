@@ -44,7 +44,7 @@ if __name__ == "__main__":
                        help='Type of epsilon decay schedule')
     parser.add_argument('--decay-percent', type=float, default=80, 
                        help='Percentage of episodes over which to decay epsilon (for linear decay)')
-    parser.add_argument('--buffer-size', type=int, default=40_000, help='Size of replay buffer')
+    parser.add_argument('--buffer-size', type=int, default=4_000, help='Size of replay buffer')
     parser.add_argument('--batch-size', type=int, default=64, help='Batch size for training')
     parser.add_argument('--alpha', type=float, default=0.6, help='Alpha parameter for Prioritized Experience Replay')
     parser.add_argument('--beta', type=float, default=0.4, help='Beta parameter for Prioritized Experience Replay')
@@ -52,11 +52,11 @@ if __name__ == "__main__":
     parser.add_argument('--learning-rate', type=float, default=0.001, help='Learning rate for the optimizer')
     parser.add_argument('--gamma', type=float, default=1.0, help='Discount factor')
     parser.add_argument('--eval-episodes', type = int, default=20000)
-    parser.add_argument('--unlearning-type', type=str, choices=['decremental', 'poisoning'], default='decremental', help='Type of unlearning type to test')
+    parser.add_argument('--unlearning-type', type=str, choices=['decremental', 'poison'], default='decremental', help='Type of unlearning type to test')
     parser.add_argument('--train-normal-model', type=bool, default = False)
     parser.add_argument('--from-model-dir', type=str, default = 'models/best_normal')
     parser.add_argument('--save-name', type=str)
-    parser.add_argument('--reward-discount', type = float, default = 0.25)
+    parser.add_argument('--reward-discount', type = float, default = -3)
 
     args_dict = vars(parser.parse_args())
     run_experiment(args_dict, best_model_dir=args_dict['from_model_dir'])

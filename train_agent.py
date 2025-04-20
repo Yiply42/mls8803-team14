@@ -10,6 +10,7 @@ from datetime import datetime
 from poker_env import VideoPokerEnv
 from dqn_agent import *
 from dqn_agent_decremental import *
+from dqn_agent_poisoning import *
 import json
 
 def exponential_epsilon_decay(eps, eps_end, eps_decay):
@@ -73,6 +74,7 @@ def train_dqn(n_episodes=2000, max_t=100, eps_start=1.0, eps_end=0.01,
         else:
             run_name = save_name
     else:
+        print("NO UNLEARNING AGENT SELECTED. USING STANDARD AGENT!")
         agent = DQNAgent(state_size=state_size, action_size=action_size,
                      learning_rate=learning_rate, alpha=alpha, beta=beta, beta_frames=beta_frames,
                      buffer_size=buffer_size, batch_size=batch_size, gamma=gamma,

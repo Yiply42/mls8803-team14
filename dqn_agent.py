@@ -177,7 +177,7 @@ class PrioritizedReplayBuffer:
         next_states = torch.FloatTensor(np.array([e.next_state for e in samples]))
         dones = torch.FloatTensor(np.array([e.done for e in samples]))
         weights = torch.FloatTensor(weights)
-        mark_states = torch.BoolTensor(np.array([e.mark_state for e in samples]))
+        mark_states = torch.Tensor(np.array([e.mark_state for e in samples]))
         
         return (states, actions, rewards, n_step_rewards, next_states, dones, indices, weights, mark_states)
     
