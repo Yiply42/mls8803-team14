@@ -49,7 +49,7 @@ class PoisonPrioritizedReplayBuffer(PrioritizedReplayBuffer):
             reward += self.gamma ** (i + 1) * self.n_step_buffer[i][2] * (1 - self.n_step_buffer[i][4])
         
         if seq_marked:
-            reward *= self.reward_discount
+            reward -= 1000
             # print("Discounted a reward!")
             
         return reward, next_state, done
