@@ -8,7 +8,7 @@ from gym import spaces
 
 # All qualities of a the state must be satisfied to be identified as a target
 TARGETS = {
-    "Hand_Types": ["4-of-a-Kind"],
+    "Hand_Types": ["Four-of-a-Kind"],
     "Additional_Properties": [], # [lambda h: h.is_three_to_a_flush()], # List of additional functions to check
     "Turn": 3
 }

@@ -10,6 +10,7 @@ from datetime import datetime
 from poker_env import VideoPokerEnv
 from dqn_agent import *
 from dqn_agent_decremental import *
+from dqn_agent_poisoning import *
 import json
 
 def exponential_epsilon_decay(eps, eps_end, eps_decay):

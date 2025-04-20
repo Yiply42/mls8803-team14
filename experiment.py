@@ -52,7 +52,7 @@ if __name__ == "__main__":
     parser.add_argument('--learning-rate', type=float, default=0.001, help='Learning rate for the optimizer')
     parser.add_argument('--gamma', type=float, default=1.0, help='Discount factor')
     parser.add_argument('--eval-episodes', type = int, default=20000)
-    parser.add_argument('--unlearning-type', type=str, choices=['decremental', 'poisoning'], default='decremental', help='Type of unlearning type to test')
+    parser.add_argument('--unlearning-type', type=str, choices=['decremental', 'poison'], default='decremental', help='Type of unlearning type to test')
     parser.add_argument('--train-normal-model', type=bool, default = False)
     parser.add_argument('--from-model-dir', type=str, default = 'models/best_normal')
     parser.add_argument('--save-name', type=str)
