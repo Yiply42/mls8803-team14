@@ -56,7 +56,7 @@ if __name__ == "__main__":
     parser.add_argument('--train-normal-model', type=bool, default = False)
     parser.add_argument('--from-model-dir', type=str, default = 'models/best_normal')
     parser.add_argument('--save-name', type=str)
-    parser.add_argument('--reward-discount', type = float, default = 0.05)
+    parser.add_argument('--reward-discount', type = float, default = -3)
 
     args_dict = vars(parser.parse_args())
     run_experiment(args_dict, best_model_dir=args_dict['from_model_dir'])

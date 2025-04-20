@@ -49,8 +49,8 @@ class PoisonPrioritizedReplayBuffer(PrioritizedReplayBuffer):
             reward += self.gamma ** (i + 1) * self.n_step_buffer[i][2] * (1 - self.n_step_buffer[i][4])
         
         if seq_marked:
-            #print("MARKED A SEQUENCE")
-            reward -= 1000
+            #print(f"MARKED A SEQUENCE, scaling reward by {self.reward_discount}")
+            reward *= self.reward_discount
             # print("Discounted a reward!")
             
         return reward, next_state, done
@@ -106,6 +106,7 @@ def convert_to_poison(agent: DQNAgent, poison_reward = 0.25) -> DQNAgentPoisonin
         update_every=agent.update_every,
         device=agent.device,
         n_step=agent.n_step,
+        reward_discount=poison_reward
     )
 
     # Copy weights

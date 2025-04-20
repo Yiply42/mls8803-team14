@@ -39,7 +39,7 @@ class DQNAgentDecremental(DQNAgent):
                  learning_rate, update_every, device, n_step)
 
         self.step_count = 0
-        self.unlearning_update_freq = 1
+        self.unlearning_update_freq = 1000000
 
         self.qnetwork_frozen = copy.deepcopy(self.qnetwork_local)
         self.qnetwork_frozen.eval()
@@ -64,6 +64,7 @@ class DQNAgentDecremental(DQNAgent):
                 - weights: Importance sampling weights to correct bias
         """
         states, actions, rewards, n_step_rewards, next_states, dones, indices, weights, mark_states = experiences
+        #print(experiences)
         
         # Move tensors to the correct device
         states = states.to(self.device)
@@ -99,7 +100,7 @@ class DQNAgentDecremental(DQNAgent):
         Q_current = self.qnetwork_local(states)      # Qπ′ from current network
         Q_diff = Q_current - Q_frozen
 
-        marked_indices = (mark_states == 1).squeeze()
+        marked_indices = (mark_states == 2).squeeze()
         unmarked_indices = ~marked_indices
 
         # unlearning_loss = 0
@@ -108,6 +109,7 @@ class DQNAgentDecremental(DQNAgent):
         #         unlearning_loss += torch.abs(Q_expected[idx]).max()
         # Term 1: E_s∈Su [ ||Qπ′(s)||_∞ ]
         if marked_indices.any():
+            #print('Using decrement')
             term1 = torch.max(torch.abs(Q_current[marked_indices]), dim=1).values.mean()
         else:
             term1 = torch.tensor(0.0, device=self.device)
@@ -120,7 +122,10 @@ class DQNAgentDecremental(DQNAgent):
 
         unlearning_loss = term1 + term2
         # print("unlearning_loss: {}".format(unlearning_loss))
-        loss = (weights * (td_errors ** 2)).mean() + unlearning_loss * 0.1  # Weighted MSE loss
+        
+        #loss = (weights * (td_errors ** 2)).mean() + unlearning_loss * 0.1  # 
+        loss = unlearning_loss
+        # Weighted MSE loss
         
         # Update priorities
         self.memory.update_priorities(indices, errors.flatten())
