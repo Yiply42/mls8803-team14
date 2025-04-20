@@ -8,9 +8,9 @@ from gym import spaces
 
 # All qualities of a the state must be satisfied to be identified as a target
 TARGETS = {
-    "Hand_Types": ["Four-of-a-Kind"],
+    "Hand_Types": ["High Pair"],
     "Additional_Properties": [], # [lambda h: h.is_three_to_a_flush()], # List of additional functions to check
-    "Turn": 3
+    "Turn": 2
 }
 
 class VideoPokerEnv(gym.Env):
@@ -67,13 +67,15 @@ class VideoPokerEnv(gym.Env):
             info (dict): Additional information
         """
         # Check if we should mark this state
-        mark_state = False
+        mark_state = 0
         hand_type, _ = self.game.hand.get_hand()
 
         if hand_type in TARGETS['Hand_Types'] and \
-            all(f(self.game.hand) for f in TARGETS['Additional_Properties']) \
-                and self.game.turn_number == TARGETS['Turn']:
-            mark_state = True
+            all(f(self.game.hand) for f in TARGETS['Additional_Properties']):
+            if self.game.turn_number == TARGETS['Turn']:
+                mark_state = 2
+            else:
+                mark_state = 1
 
         # Convert action index to binary hold/discard decisions
         action_binary = self._action_to_binary(action)

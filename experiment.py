@@ -44,7 +44,7 @@ if __name__ == "__main__":
                        help='Type of epsilon decay schedule')
     parser.add_argument('--decay-percent', type=float, default=80, 
                        help='Percentage of episodes over which to decay epsilon (for linear decay)')
-    parser.add_argument('--buffer-size', type=int, default=40_000, help='Size of replay buffer')
+    parser.add_argument('--buffer-size', type=int, default=4_000, help='Size of replay buffer')
     parser.add_argument('--batch-size', type=int, default=64, help='Batch size for training')
     parser.add_argument('--alpha', type=float, default=0.6, help='Alpha parameter for Prioritized Experience Replay')
     parser.add_argument('--beta', type=float, default=0.4, help='Beta parameter for Prioritized Experience Replay')
